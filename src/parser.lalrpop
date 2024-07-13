@@ -1,6 +1,6 @@
 use mcscript::ast::{
-    Program, FuncDef, Block, BlockItem, Stmt, 
-    exp::{ Exp },
+    Program, FuncDef, Block, BlockItem, Stmt,
+    exp::{ Exp, UnaryOp, BinaryOp },
 };
 
 grammar;
@@ -37,9 +37,6 @@ ReturnStmt: Stmt = {
     "return" <return_value: Exp> ";" => Stmt::Return { <> }
 }
 
-Exp: Box<Exp> = {
-    Number => Box::new(Exp::Number(<>)),
-}
 
 Number: i32 = IntConst;
 
@@ -47,4 +44,44 @@ IntConst: i32 = {
     r"[1-9][0-9]*" => i32::from_str_radix(<>, 10).unwrap(),
     r"0[0-7]*" => i32::from_str_radix(<>, 8).unwrap(),
     r"0[xX][0-9a-fA-F]+" => i32::from_str_radix(&<>[2..], 16).unwrap(),
+}
+
+Exp: Box<Exp> = AddExp;
+
+PrimaryExp: Box<Exp> = {
+    Number => Box::new(Exp::Number(<>)),
+    "(" <Exp> ")",
+}
+
+UnaryExp: Box<Exp> = {
+    <op: UnaryOp> <exp: UnaryExp> => {
+        Box::new(Exp::UnaryExp(op, exp))
+    },
+    PrimaryExp,
+}
+
+UnaryOp: UnaryOp = {
+    "+" => UnaryOp::Positive,
+    "-" => UnaryOp::Negative,
+}
+
+MulExp: Box<Exp> = {
+    <lhs: MulExp> <op: MulOp> <rhs: UnaryExp> => Box::new(Exp::BinaryExp(op, lhs, rhs)),
+    UnaryExp,
+}
+
+MulOp: BinaryOp = {
+    "*" => BinaryOp::Mul,
+    "/" => BinaryOp::Div,
+    "%" => BinaryOp::Mod
+}
+
+AddExp: Box<Exp> = {
+    <lhs: AddExp> <op: AddOp> <rhs: MulExp> => Box::new(Exp::BinaryExp(op, lhs, rhs)),
+    MulExp,
+}
+
+AddOp: BinaryOp = {
+    "+" => BinaryOp::Add,
+    "-" => BinaryOp::Sub,
 }
