@@ -1,0 +1,11 @@
+[package]
+name = "mcscript"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies]
+lalrpop = "0.20.2"
+
+[dependencies]
+koopa = "0.0.7"
+lalrpop-util = { version = "0.20.2", features = ["lexer", "unicode"] }

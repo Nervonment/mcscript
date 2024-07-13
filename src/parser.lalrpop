@@ -1,0 +1,50 @@
+use mcscript::ast::{
+    Program, FuncDef, Block, BlockItem, Stmt, 
+    exp::{ Exp },
+};
+
+grammar;
+
+// lexer
+match {
+    // skip spaces & comments
+    r"\s*" => {},
+    r"//.*[\n\r]*" => {},
+    r"/\*[^*]*\*+(?:[^/*][^*]*\*+)*/" => { },
+    _
+}
+
+pub Program: Program = <func_def: FuncDef> => Program { <> };
+
+FuncDef: FuncDef = {
+    "fn" <ident: Ident> "(" ")"  <block: Block> => FuncDef { <> }
+}
+
+Ident: String = r"[_a-zA-Z][_a-zA-Z0-9]*" => <>.to_string();
+
+Block: Block = "{" <items: BlockItem*> "}" => Block(<>);
+
+BlockItem: BlockItem = {
+//    Decl => BlockItem::Decl(<>),
+    Stmt => BlockItem::Stmt(<>),
+}
+
+Stmt: Stmt = {
+    ReturnStmt,
+}
+
+ReturnStmt: Stmt = {
+    "return" <return_value: Exp> ";" => Stmt::Return { <> }
+}
+
+Exp: Box<Exp> = {
+    Number => Box::new(Exp::Number(<>)),
+}
+
+Number: i32 = IntConst;
+
+IntConst: i32 = {
+    r"[1-9][0-9]*" => i32::from_str_radix(<>, 10).unwrap(),
+    r"0[0-7]*" => i32::from_str_radix(<>, 8).unwrap(),
+    r"0[xX][0-9a-fA-F]+" => i32::from_str_radix(&<>[2..], 16).unwrap(),
+}
