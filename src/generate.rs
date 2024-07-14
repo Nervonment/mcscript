@@ -68,8 +68,10 @@ impl FuncDef {
         ]);
         dest.append_mcfunction(entry);
 
+        let mut branch_acc = 0;
         let mut body = Mcfunction::new(format!("{}-body", self.ident.clone()));
-        self.block.to_commands(&mut body, symbol_table);
+        self.block
+            .to_commands(&mut body, dest, symbol_table, &mut branch_acc);
 
         dest.append_mcfunction(body);
 
@@ -101,7 +103,13 @@ impl Program {
 }
 
 impl Block {
-    pub fn to_commands(&self, dest: &mut Mcfunction, symbol_table: &mut SymbolTable) {
+    pub fn to_commands(
+        &self,
+        dest: &mut Mcfunction,
+        dest_namespace: &mut Namespace,
+        symbol_table: &mut SymbolTable,
+        branch_acc: &mut u32,
+    ) {
         symbol_table.enter_scope();
         for block_item in &self.0 {
             match block_item {
@@ -139,7 +147,59 @@ impl Block {
                         ]);
                     }
                     Stmt::Block(block) => {
-                        block.to_commands(dest, symbol_table);
+                        block.to_commands(dest, dest_namespace, symbol_table, branch_acc);
+                    }
+                    Stmt::IfElse {
+                        exp,
+                        if_branch,
+                        else_branch,
+                    } => {
+                        let mut reg_acc = 0;
+                        let reg_exp = exp.to_commands(dest, &mut reg_acc, symbol_table);
+                        let mut if_branch_mcfuntion =
+                            Mcfunction::new(format!("{}-branch_{}", dest.name(), branch_acc));
+                        if else_branch.is_some() {
+                            let mut else_branch_mcfuntion = Mcfunction::new(format!(
+                                "{}-branch_{}",
+                                dest.name(),
+                                *branch_acc + 1
+                            ));
+                            dest.append_commands(vec![
+                                &format!("scoreboard players set r{} registers 1", reg_acc),
+                                &format!("execute if score {} registers matches 0 run scoreboard players set r{} registers 0", reg_exp, reg_acc),
+                                &format!("execute if score r{} registers matches 1 run function {}:{} with storage memory:temp", reg_acc, dest_namespace.name(), if_branch_mcfuntion.name()),
+                                &format!("execute if score {} registers matches 0 run function {}:{} with storage memory:temp", reg_exp, dest_namespace.name(), else_branch_mcfuntion.name()),
+                            ]);
+                            *branch_acc += 2;
+                            if_branch.to_commands(
+                                &mut if_branch_mcfuntion,
+                                dest_namespace,
+                                symbol_table,
+                                branch_acc,
+                            );
+                            else_branch.clone().unwrap().to_commands(
+                                &mut else_branch_mcfuntion,
+                                dest_namespace,
+                                symbol_table,
+                                branch_acc,
+                            );
+                            dest_namespace.append_mcfunction(if_branch_mcfuntion);
+                            dest_namespace.append_mcfunction(else_branch_mcfuntion);
+                        } else {
+                            dest.append_commands(vec![
+                                &format!("scoreboard players set r{} registers 1", reg_acc),
+                                &format!("execute if score {} registers matches 0 run scoreboard players set r{} registers 0", reg_exp, reg_acc),
+                                &format!("execute if score r{} registers matches 1 run function {}:{} with storage memory:temp", reg_acc, dest_namespace.name(), if_branch_mcfuntion.name()),
+                            ]);
+                            *branch_acc += 1;
+                            if_branch.to_commands(
+                                &mut if_branch_mcfuntion,
+                                dest_namespace,
+                                symbol_table,
+                                branch_acc,
+                            );
+                            dest_namespace.append_mcfunction(if_branch_mcfuntion);
+                        }
                     }
                 },
             }
@@ -233,19 +293,13 @@ impl Exp {
                         reg_res, op, reg_rhs
                     ));
                 } else if !is_ne {
-                    dest.append_command(&format!(
-                        "scoreboard players set {} registers 0",
-                        reg_res
-                    ));
+                    dest.append_command(&format!("scoreboard players set {} registers 0", reg_res));
                     dest.append_command(&format!(
                         "execute if score {} registers {} {} registers run scoreboard players set {} registers 1",
                         reg_lhs, op, reg_rhs, reg_res
                     ));
                 } else {
-                    dest.append_command(&format!(
-                        "scoreboard players set {} registers 1",
-                        reg_res
-                    ));
+                    dest.append_command(&format!("scoreboard players set {} registers 1", reg_res));
                     dest.append_command(&format!(
                         "execute if score {} registers {} {} registers run scoreboard players set {} registers 0",
                         reg_lhs, op, reg_rhs, reg_res

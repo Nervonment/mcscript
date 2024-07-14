@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Exp {
     UnaryExp(UnaryOp, Box<Exp>),
     BinaryExp(BinaryOp, Box<Exp>, Box<Exp>),
@@ -6,13 +6,13 @@ pub enum Exp {
     Variable(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum UnaryOp {
     Positive,
     Negative,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BinaryOp {
     Add,
     Sub,

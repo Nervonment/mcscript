@@ -13,22 +13,22 @@ pub struct FuncDef {
     pub block: Block,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Block(pub Vec<BlockItem>);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BlockItem {
     Decl(Decl),
     Stmt(Stmt),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Decl {
     pub ident: String,
     pub init_value: Box<Exp>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Stmt {
     Return {
         return_value: Box<Exp>,
@@ -38,9 +38,9 @@ pub enum Stmt {
         new_value: Box<Exp>,
     },
     Block(Block),
-    // IfElse {
-    //     exp: Box<Exp>,
-    //     if_branch: Box<Stmt>,
-    //     else_branch: Option<Box<Stmt>>,
-    // },
+    IfElse {
+        exp: Box<Exp>,
+        if_branch: Block,
+        else_branch: Option<Block>,
+    },
 }

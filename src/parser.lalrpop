@@ -37,7 +37,7 @@ Stmt: Stmt = {
     ReturnStmt,
     AssignStmt,
     Block => Stmt::Block(<>),
-    // IfElseStmt,
+    IfElseStmt,
 }
 
 ReturnStmt: Stmt = {
@@ -45,12 +45,14 @@ ReturnStmt: Stmt = {
 }
 
 AssignStmt: Stmt = {
-    <ident: Ident> "=" <new_value: Exp> ";" => Stmt::Assign{ <> }
+    <ident: Ident> "=" <new_value: Exp> ";" => Stmt::Assign { <> }
 }
 
-// IfElseStmt: Stmt = {
-//     "if" <exp: Exp> <if_branch: Block> 
-// }
+IfElseStmt: Stmt = {
+    "if" <exp: Exp> <if_branch: Block> => Stmt::IfElse { exp, if_branch: if_branch, else_branch: None },
+    "if" <exp: Exp> <if_branch: Block> "else" <else_branch: Block> => Stmt::IfElse { exp, if_branch, else_branch: Some(else_branch)},
+    "if" <exp: Exp> <if_branch: Block> "else" <else_branch: IfElseStmt> => Stmt::IfElse { exp, if_branch, else_branch: Some(Block(vec![BlockItem::Stmt(else_branch)])) },
+}
 
 Number: i32 = IntConst;
 

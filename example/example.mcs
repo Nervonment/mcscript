@@ -1,9 +1,14 @@
 fn main() {
     let x = 114 * 514 - 19 * (198 - 10);
-    {
-        x = x + 1;
-        let x = 2;
-        x = x + 3;
+    if x > 100000 {
+        x = x / 2;
+    } else if x > 50000 {
+        x = x - 50000;
+        if x > 50000 {
+            x = x - 50000;
+        }
+    } else {
+        x = x + 100;
     }
-    return x != 55025;
+    return x;
 }
