@@ -4,6 +4,11 @@ pub enum Exp {
     BinaryExp(BinaryOp, Box<Exp>, Box<Exp>),
     Number(i32),
     Variable(String),
+    FuncCall {
+        func_ident: String,
+        arguments: Vec<Box<Exp>>,
+        reg_res: String,
+    },
 }
 
 #[derive(Debug, Clone)]

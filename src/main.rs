@@ -8,7 +8,7 @@ fn main() -> Result<()> {
     let mut args = args();
     args.next();
     let input = read_to_string(args.next().unwrap())?;
-    let ast = parser::ProgramParser::new().parse(&input).unwrap();
+    let mut ast = parser::ProgramParser::new().parse(&input).unwrap();
     println!("{:#?}", ast);
     let datapack = ast.to_datapack("my_datapack".into());
     datapack.write_to_file()?;

@@ -4,13 +4,19 @@ pub mod exp;
 
 #[derive(Debug)]
 pub struct Program {
-    pub func_def: FuncDef,
+    pub func_defs: Vec<FuncDef>,
 }
 
 #[derive(Debug)]
 pub struct FuncDef {
     pub ident: String,
+    pub params: Vec<FuncParam>,
     pub block: Block,
+}
+
+#[derive(Debug, Clone)]
+pub struct FuncParam {
+    pub ident: String,
 }
 
 #[derive(Debug, Clone)]
@@ -43,4 +49,5 @@ pub enum Stmt {
         if_branch: Block,
         else_branch: Option<Block>,
     },
+    Exp(Box<Exp>),
 }

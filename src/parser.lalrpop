@@ -1,5 +1,5 @@
 use mcscript::ast::{
-    Program, FuncDef, Block, BlockItem, Stmt, Decl,
+    Program, FuncDef, Block, BlockItem, Stmt, Decl, FuncParam, 
     exp::{ Exp, UnaryOp, BinaryOp },
 };
 
@@ -14,11 +14,18 @@ match {
     _
 }
 
-pub Program: Program = <func_def: FuncDef> => Program { <> };
+pub Program: Program =<func_defs: (<FuncDef>)*> => Program { <> };
 
 FuncDef: FuncDef = {
-    "fn" <ident: Ident> "(" ")"  <block: Block> => FuncDef { <> }
+    "fn" <ident: Ident> "(" <param: FuncParam?> <mut params: ("," <FuncParam>)*> ")" <block: Block> => {
+        if param.is_some() {
+            params.push(param.unwrap());
+        }
+        FuncDef { ident, params, block }
+    }
 }
+
+FuncParam: FuncParam = <ident: Ident> => FuncParam { <> };
 
 Ident: String = r"[_a-zA-Z][_a-zA-Z0-9]*" => <>.to_string();
 
@@ -38,6 +45,7 @@ Stmt: Stmt = {
     AssignStmt,
     Block => Stmt::Block(<>),
     IfElseStmt,
+    <Exp> ";" => Stmt::Exp(<>),
 }
 
 ReturnStmt: Stmt = {
@@ -67,8 +75,16 @@ Exp: Box<Exp> = EqExp;
 PrimaryExp: Box<Exp> = {
     Number => Box::new(Exp::Number(<>)),
     Ident => Box::new(Exp::Variable(<>)),
+    <func_ident: Ident> "(" <arg: Exp?> <mut args: ("," <Exp>)*> ")" => {
+        if arg.is_some() {
+            args.push(arg.unwrap());
+        }
+        Box::new(Exp::FuncCall { func_ident, arguments: args, reg_res: "".into() })
+    },
     "(" <Exp> ")",
 }
+
+FuncArg: Box<Exp> = Exp;
 
 UnaryExp: Box<Exp> = {
     <op: UnaryOp> <exp: UnaryExp> => {

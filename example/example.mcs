@@ -1,14 +1,10 @@
-fn main() {
-    let x = 114 * 514 - 19 * (198 - 10);
-    if x > 100000 {
-        x = x / 2;
-    } else if x > 50000 {
-        x = x - 50000;
-        if x > 50000 {
-            x = x - 50000;
-        }
-    } else {
-        x = x + 100;
+fn fib(n) {
+    if n < 2 {
+        return 1;
     }
-    return x;
+    return fib(n - 1) + fib(n - 2);
+}
+
+fn main() {
+    return fib(12);
 }
