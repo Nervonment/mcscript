@@ -1,5 +1,5 @@
 use mcscript::ast::{
-    Program, FuncDef, Block, BlockItem, Stmt,
+    Program, FuncDef, Block, BlockItem, Stmt, Decl,
     exp::{ Exp, UnaryOp, BinaryOp },
 };
 
@@ -25,18 +25,26 @@ Ident: String = r"[_a-zA-Z][_a-zA-Z0-9]*" => <>.to_string();
 Block: Block = "{" <items: BlockItem*> "}" => Block(<>);
 
 BlockItem: BlockItem = {
-//    Decl => BlockItem::Decl(<>),
+    Decl => BlockItem::Decl(<>),
     Stmt => BlockItem::Stmt(<>),
+}
+
+Decl: Decl = {
+    "let" <ident: Ident> "=" <init_value: Exp> ";" => Decl{ <> }
 }
 
 Stmt: Stmt = {
     ReturnStmt,
+    AssignStmt,
 }
 
 ReturnStmt: Stmt = {
     "return" <return_value: Exp> ";" => Stmt::Return { <> }
 }
 
+AssignStmt: Stmt = {
+    <ident: Ident> "=" <new_value: Exp> ";" => Stmt::Assign{ <> }
+}
 
 Number: i32 = IntConst;
 
@@ -50,6 +58,7 @@ Exp: Box<Exp> = AddExp;
 
 PrimaryExp: Box<Exp> = {
     Number => Box::new(Exp::Number(<>)),
+    Ident => Box::new(Exp::Variable(<>)),
     "(" <Exp> ")",
 }
 

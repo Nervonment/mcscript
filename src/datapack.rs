@@ -103,6 +103,7 @@ impl Mcfunction {
 
     pub fn append_commands(&mut self, commands: Vec<&str>) {
         self.content.push_str(&commands.join("\n"));
+        self.content.push_str("\n");
     }
 
     pub fn name(&self) -> &str {

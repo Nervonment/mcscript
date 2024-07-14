@@ -23,11 +23,18 @@ pub enum BlockItem {
 }
 
 #[derive(Debug)]
-pub struct Decl;
+pub struct Decl {
+    pub ident: String,
+    pub init_value: Box<Exp>,
+}
 
 #[derive(Debug)]
 pub enum Stmt {
     Return {
-        return_value: Box<Exp>
-    }
+        return_value: Box<Exp>,
+    },
+    Assign {
+        ident: String,
+        new_value: Box<Exp>,
+    },
 }
