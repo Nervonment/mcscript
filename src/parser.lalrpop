@@ -79,7 +79,7 @@ PrimaryExp: Box<Exp> = {
         if arg.is_some() {
             args.push(arg.unwrap());
         }
-        Box::new(Exp::FuncCall { func_ident, arguments: args, reg_res: "".into() })
+        Box::new(Exp::FuncCall { func_ident, arguments: args })
     },
     "(" <Exp> ")",
 }

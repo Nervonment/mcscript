@@ -262,11 +262,6 @@ impl Generator {
     }
 
     fn generate_from_exp(&mut self, exp: &mut Exp, reg_acc: &mut u32) -> String {
-        self.generate_from_exp_call_function_first(exp, reg_acc);
-        self.generate_from_exp_eval(exp, reg_acc)
-    }
-
-    fn generate_from_exp_eval(&mut self, exp: &mut Exp, reg_acc: &mut u32) -> String {
         match exp {
             Exp::Number(num) => {
                 let reg_res = format!("r{}", reg_acc);
@@ -299,7 +294,7 @@ impl Generator {
                 reg_res
             }
             Exp::UnaryExp(op, exp) => {
-                let reg_exp = self.generate_from_exp_eval(exp, reg_acc);
+                let reg_exp = self.generate_from_exp(exp, reg_acc);
                 let reg_res = format!("r{}", reg_acc);
                 *reg_acc += 1;
                 match op {
@@ -336,8 +331,8 @@ impl Generator {
                     BinaryOp::Eq => ("=", true, false),
                     BinaryOp::Ne => ("=", true, true),
                 };
-                let reg_lhs = self.generate_from_exp_eval(lhs, reg_acc);
-                let reg_rhs = self.generate_from_exp_eval(rhs, reg_acc);
+                let reg_lhs = self.generate_from_exp(lhs, reg_acc);
+                let reg_rhs = self.generate_from_exp(rhs, reg_acc);
                 let reg_res = format!("r{}", reg_acc);
                 if !is_rel {
                     self.working_mcfunction.append_command(&format!(
@@ -367,22 +362,20 @@ impl Generator {
                 reg_res
             }
             Exp::FuncCall {
-                func_ident: _,
-                arguments: _,
-                reg_res,
-            } => reg_res.to_owned(),
-        }
-    }
-
-    fn generate_from_exp_call_function_first(&mut self, exp: &mut Exp, reg_acc: &mut u32) {
-        match exp {
-            Exp::FuncCall {
                 func_ident,
                 arguments,
-                reg_res,
             } => {
+                let reg_res = format!("r{}", reg_acc);
+                // save registers
+                for i in 0..*reg_acc {
+                    self.working_mcfunction.append_command(
+                        &format!("$execute store result storage memory:stack frame[$(base_index)].%r{} int 1.0 run scoreboard players get r{} registers", i, i)
+                    );
+                }
+                // call function
+                let mut reg_acc_1 = 0;
                 for (i, arg) in arguments.iter_mut().enumerate() {
-                    let reg_res = self.generate_from_exp(arg, reg_acc);
+                    let reg_res = self.generate_from_exp(arg, &mut reg_acc_1);
                     let (_, symbol) = self.symbol_table.query_symbol(&func_ident);
                     let params = match symbol {
                         Symbol::Variable { decorated_name: _ } => panic!(),
@@ -394,7 +387,6 @@ impl Generator {
                         reg_res
                     ));
                 }
-                *reg_res = format!("r{}", reg_acc);
                 self.working_mcfunction.append_commands(vec![
                     &format!(
                         "function {}:{} with storage memory:temp",
@@ -406,18 +398,62 @@ impl Generator {
                         reg_res
                     ),
                 ]);
+                // restore registers
+                for i in 0..*reg_acc {
+                    self.working_mcfunction.append_command(
+                        &format!("$execute store result score r{} registers run data get storage memory:stack frame[$(base_index)].%r{}", i, i)
+                    );
+                }
                 *reg_acc += 1;
+                reg_res
             }
-            Exp::UnaryExp(_, exp) => {
-                self.generate_from_exp_call_function_first(exp, reg_acc);
-            }
-            Exp::BinaryExp(_, lhs, rhs) => {
-                self.generate_from_exp_call_function_first(lhs, reg_acc);
-                self.generate_from_exp_call_function_first(rhs, reg_acc);
-            }
-            _ => {}
         }
     }
+
+    // fn generate_from_exp_call_function_first(&mut self, exp: &mut Exp, reg_acc: &mut u32) {
+    //     match exp {
+    //         Exp::FuncCall {
+    //             func_ident,
+    //             arguments,
+    //             reg_res,
+    //         } => {
+    //             for (i, arg) in arguments.iter_mut().enumerate() {
+    //                 let reg_res = self.generate_from_exp(arg, reg_acc);
+    //                 let (_, symbol) = self.symbol_table.query_symbol(&func_ident);
+    //                 let params = match symbol {
+    //                     Symbol::Variable { decorated_name: _ } => panic!(),
+    //                     Symbol::Function { params } => params,
+    //                 };
+    //                 self.working_mcfunction.append_command(
+    //                     &format!("execute store result storage memory:temp arguments.{}@1 int 1.0 run scoreboard players get {} registers",
+    //                     params[i].ident,
+    //                     reg_res
+    //                 ));
+    //             }
+    //             *reg_res = format!("r{}", reg_acc);
+    //             self.working_mcfunction.append_commands(vec![
+    //                 &format!(
+    //                     "function {}:{} with storage memory:temp",
+    //                     self.namespace.name(),
+    //                     func_ident
+    //                 ),
+    //                 &format!(
+    //                     "scoreboard players operation {} registers = return_value registers",
+    //                     reg_res
+    //                 ),
+    //             ]);
+    //             *reg_acc += 1;
+    //         }
+    //         Exp::UnaryExp(_, exp) => {
+    //             self.generate_from_exp_call_function_first(exp, reg_acc);
+    //         }
+    //         Exp::BinaryExp(_, lhs, rhs) => {
+    //             self.generate_from_exp_call_function_first(lhs, reg_acc);
+    //             self.generate_from_exp_call_function_first(rhs, reg_acc);
+    //         }
+    //         _ => {}
+    //     }
+    // }
 
     fn new_label(&mut self) -> String {
         self.namespace

@@ -7,7 +7,6 @@ pub enum Exp {
     FuncCall {
         func_ident: String,
         arguments: Vec<Box<Exp>>,
-        reg_res: String,
     },
 }
 
