@@ -139,6 +139,9 @@ impl Block {
                             }
                         ]);
                     }
+                    Stmt::Block(block) => {
+                        block.to_commands(dest, symbol_table);
+                    }
                 },
             }
         }

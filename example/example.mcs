@@ -1,5 +1,9 @@
 fn main() {
     let x = 114 * 514 - 19 * (198 - 10);
-    x = x + 1;
+    {
+        x = x + 1;
+        let x = 2;
+        x = x + 3;
+    }
     return x;
 }

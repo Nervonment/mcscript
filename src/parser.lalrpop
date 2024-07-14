@@ -36,6 +36,8 @@ Decl: Decl = {
 Stmt: Stmt = {
     ReturnStmt,
     AssignStmt,
+    Block => Stmt::Block(<>),
+    // IfElseStmt,
 }
 
 ReturnStmt: Stmt = {
@@ -45,6 +47,10 @@ ReturnStmt: Stmt = {
 AssignStmt: Stmt = {
     <ident: Ident> "=" <new_value: Exp> ";" => Stmt::Assign{ <> }
 }
+
+// IfElseStmt: Stmt = {
+//     "if" <exp: Exp> <if_branch: Block> 
+// }
 
 Number: i32 = IntConst;
 

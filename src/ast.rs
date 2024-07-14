@@ -37,4 +37,10 @@ pub enum Stmt {
         ident: String,
         new_value: Box<Exp>,
     },
+    Block(Block),
+    // IfElse {
+    //     exp: Box<Exp>,
+    //     if_branch: Box<Stmt>,
+    //     else_branch: Option<Box<Stmt>>,
+    // },
 }
