@@ -69,103 +69,100 @@ impl SymbolTable {
     }
 }
 
-impl FuncDef {
-    pub fn to_mcfunction(&mut self, dest: &mut Namespace, symbol_table: &mut SymbolTable) {
-        symbol_table.new_function(self);
+pub struct Generator {
+    symbol_table: SymbolTable,
+    pack_name: String,
+    namespace: Namespace,
+    working_function_ident: String,
+    working_mcfunction: Mcfunction,
+    label_acc: u32,
+}
 
-        let mut entry = Mcfunction::new(self.ident.clone());
+impl Generator {
+    pub fn new(pack_name: String) -> Self {
+        Self {
+            symbol_table: SymbolTable::new(),
+            pack_name: pack_name.clone(),
+            namespace: Namespace::new(pack_name),
+            working_function_ident: "".into(),
+            working_mcfunction: Mcfunction::new("".into()),
+            label_acc: 0,
+        }
+    }
+
+    pub fn generate(&mut self, mut program: Program) -> Datapack {
+        for func_def in &mut program.func_defs {
+            self.generate_from_func_def(func_def);
+        }
+
+        let mut datapack = Datapack::new(self.pack_name.clone());
+        datapack.append_namespace(self.namespace.clone());
+        datapack
+    }
+
+    fn generate_from_func_def(&mut self, func_def: &mut FuncDef) {
+        self.working_function_ident = func_def.ident.clone();
+        self.symbol_table.new_function(func_def);
+
+        let mut entry = Mcfunction::new(self.working_function_ident.clone());
         entry.append_commands(vec![
             "scoreboard players add base_index registers 1",
             "execute store result storage memory:temp base_index int 1.0 run scoreboard players get base_index registers",
             "data modify storage memory:stack frame append from storage memory:temp arguments",
             "",
-            &format!("function {}:{}-body with storage memory:temp", dest.name(), self.ident),
+            &format!("function {}:{}-label_0 with storage memory:temp", self.namespace.name(), self.working_function_ident.clone()),
             "",
             "function mcscript:pop_frame with storage memory:temp",
         ]);
-        dest.append_mcfunction(entry);
+        self.namespace.append_mcfunction(entry);
 
-        let mut label_acc = 0;
-        let mut body = Mcfunction::new(format!("{}-body", self.ident.clone()));
-        symbol_table.enter_scope();
-        for param in &self.params {
-            symbol_table.new_variable(&param.ident);
+        self.label_acc = 0;
+        self.working_mcfunction =
+            Mcfunction::new(format!("{}-label_0", self.working_function_ident));
+        self.symbol_table.enter_scope();
+        for param in &func_def.params {
+            self.symbol_table.new_variable(&param.ident);
         }
-        self.block
-            .to_commands(&self.ident, &mut body, dest, symbol_table, &mut label_acc);
-        symbol_table.leave_scope();
+        self.generate_from_block(&mut func_def.block);
+        self.symbol_table.leave_scope();
 
-        dest.append_mcfunction(body);
-
-        // let mut push_frame = Mcfunction::new(format!("{}-push_frame", self.ident.clone()));
-        // push_frame.append_commands(vec![
-        // local variables
-        // "$data modify storage memory:stack frame[$(base_index)] merge value {}",
-        // arguments
-        // "$data modify storage memory:stack frame[$(base_index)] merge value {}",
-        // base index
-        // "$data modify storage memory:stack frame[$(base_index)] merge value {base_index: $(base_index)}",
-        // ]);
-        // dest.append_mcfunction(push_frame);
+        self.namespace
+            .append_mcfunction(self.working_mcfunction.clone());
     }
-}
 
-impl Program {
-    pub fn to_datapack(&mut self, pack_name: String) -> Datapack {
-        let mut symbol_table = SymbolTable::new();
-
-        let mut namespace = Namespace::new(pack_name.clone());
-        for func_def in &mut self.func_defs {
-            func_def.to_mcfunction(&mut namespace, &mut symbol_table);
-        }
-
-        let mut datapck = Datapack::new(pack_name);
-        datapck.append_namespace(namespace);
-        datapck
-    }
-}
-
-impl Block {
-    pub fn to_commands(
-        &mut self,
-        working_function_name: &str,
-        dest: &mut Mcfunction,
-        dest_namespace: &mut Namespace,
-        symbol_table: &mut SymbolTable,
-        label_acc: &mut u32,
-    ) {
-        for block_item in &mut self.0 {
+    fn generate_from_block(&mut self, block: &mut Block) {
+        for block_item in &mut block.0 {
             match block_item {
                 BlockItem::Decl(decl) => {
-                    let decorated_name = match symbol_table.new_variable(&decl.ident) {
+                    let decorated_name = match self.symbol_table.new_variable(&decl.ident) {
                         Symbol::Variable { decorated_name } => decorated_name,
                         Symbol::Function { params: _ } => unreachable!(),
                     };
-                    let reg_res =
-                        decl.init_value
-                            .to_commands(dest, dest_namespace, &mut 0, symbol_table);
-                    dest.append_commands(vec![
+                    let reg_res = self.generate_from_exp(&mut decl.init_value, &mut 0);
+                    self.working_mcfunction.append_commands(vec![
                         &format!("$execute store result storage memory:stack frame[$(base_index)].{} int 1.0 run scoreboard players get {} registers", decorated_name, reg_res)
                     ]);
                 }
                 BlockItem::Stmt(stmt) => match stmt {
                     Stmt::Return { return_value } => {
-                        let reg_res =
-                            return_value.to_commands(dest, dest_namespace, &mut 0, symbol_table);
-                        dest.append_commands(vec![&format!(
-                            "scoreboard players operation return_value registers = {} registers",
-                            reg_res
-                        )]);
+                        let reg_res = self.generate_from_exp(return_value, &mut 0);
+                        self.working_mcfunction.append_commands(vec![
+                            &format!(
+                                "scoreboard players operation return_value registers = {} registers",
+                                reg_res
+                            ),
+                            // "function mcscript:pop_frame with storage memory:temp",
+                            "return 0",
+                        ]);
                     }
                     Stmt::Assign { ident, new_value } => {
-                        let (is_local, symbol) = symbol_table.query_symbol(ident);
+                        let (is_local, symbol) = self.symbol_table.query_symbol(ident);
                         let decorated_name = match symbol {
                             Symbol::Variable { decorated_name } => decorated_name,
                             Symbol::Function { params: _ } => panic!(),
                         };
-                        let reg_res =
-                            new_value.to_commands(dest, dest_namespace, &mut 0, symbol_table);
-                        dest.append_commands(vec![
+                        let reg_res = self.generate_from_exp(new_value, &mut 0);
+                        self.working_mcfunction.append_commands(vec![
                             &if is_local {
                                 format!(
                                     "$execute store result storage memory:stack frame[$(base_index)].{} int 1.0 run scoreboard players get {} registers",
@@ -180,9 +177,9 @@ impl Block {
                         ]);
                     }
                     Stmt::Block(block) => {
-                        symbol_table.enter_scope();
-                        block.to_commands(dest, dest_namespace, symbol_table, label_acc);
-                        symbol_table.leave_scope();
+                        self.symbol_table.enter_scope();
+                        self.generate_from_block(block);
+                        self.symbol_table.leave_scope();
                     }
                     Stmt::IfElse {
                         exp,
@@ -190,101 +187,90 @@ impl Block {
                         else_branch,
                     } => {
                         let mut reg_acc = 0;
-                        let reg_exp =
-                            exp.to_commands(dest, dest_namespace, &mut reg_acc, symbol_table);
-                        let mut if_branch_mcfuntion = Mcfunction::new(format!(
+                        let reg_exp = self.generate_from_exp(exp, &mut reg_acc);
+
+                        let label_if_branch = format!(
                             "{}-label_{}",
-                            working_function_name, label_acc
-                        ));
+                            self.working_function_ident,
+                            self.label_acc + 1
+                        );
                         if else_branch.is_some() {
-                            let mut else_branch_mcfuntion = Mcfunction::new(format!(
+                            let label_else_branch = format!(
                                 "{}-label_{}",
-                                working_function_name,
-                                *label_acc + 1
-                            ));
-                            let mut following_mcfunction = Mcfunction::new(format!(
+                                self.working_function_ident,
+                                self.label_acc + 2
+                            );
+                            let label_following = format!(
                                 "{}-label_{}",
-                                working_function_name,
-                                *label_acc + 2
-                            ));
-                            dest.append_commands(vec![
+                                self.working_function_ident,
+                                self.label_acc + 3
+                            );
+                            self.working_mcfunction.append_commands(vec![
                                 &format!("scoreboard players set r{} registers 1", reg_acc),
                                 &format!("execute if score {} registers matches 0 run scoreboard players set r{} registers 0", reg_exp, reg_acc),
-                                &format!("execute if score r{} registers matches 1 run function {}:{} with storage memory:temp", reg_acc, dest_namespace.name(), if_branch_mcfuntion.name()),
-                                &format!("execute if score {} registers matches 0 run function {}:{} with storage memory:temp", reg_exp, dest_namespace.name(), else_branch_mcfuntion.name()),
+                                &format!("execute if score r{} registers matches 1 run function {}:{} with storage memory:temp", reg_acc, self.namespace.name(), label_if_branch),
+                                &format!("execute if score {} registers matches 0 run function {}:{} with storage memory:temp", reg_exp, self.namespace.name(), label_else_branch),
                             ]);
-                            *label_acc += 3;
-                            symbol_table.enter_scope();
-                            if_branch.to_commands(
-                                working_function_name,
-                                &mut if_branch_mcfuntion,
-                                dest_namespace,
-                                symbol_table,
-                                label_acc,
+                            // if branch
+                            self.new_label();
+                            self.generate_from_block(if_branch);
+                            self.working_mcfunction.append_command(&format!(
+                                "function {}:{} with storage memory:temp",
+                                self.namespace.name(),
+                                label_following
+                            ));
+                            // else branch
+                            self.new_label();
+                            self.generate_from_block(&mut else_branch.clone().unwrap());
+                            self.working_mcfunction.append_command(&format!(
+                                "function {}:{} with storage memory:temp",
+                                self.namespace.name(),
+                                label_following
+                            ));
+                            // following
+                            self.new_label();
+                        } else {
+                            let label_following = format!(
+                                "{}-label_{}",
+                                self.working_function_ident,
+                                self.label_acc + 2
                             );
-                            symbol_table.leave_scope();
-                            symbol_table.enter_scope();
-                            else_branch.clone().unwrap().to_commands(
-                                working_function_name,
-                                &mut else_branch_mcfuntion,
-                                dest_namespace,
-                                symbol_table,
-                                label_acc,
-                            );
-                            symbol_table.leave_scope();
-                            dest_namespace.append_mcfunction(if_branch_mcfuntion);
-                            dest_namespace.append_mcfunction(else_branch_mcfuntion);
+                            self.working_mcfunction.append_commands(vec![
+                                &format!("scoreboard players set r{} registers 1", reg_acc),
+                                &format!("execute if score {} registers matches 0 run scoreboard players set r{} registers 0", reg_exp, reg_acc),
+                                &format!("execute if score r{} registers matches 1 run function {}:{} with storage memory:temp", reg_acc, self.namespace.name(), label_if_branch),
+                                &format!("execute if score {} registers matches 0 run function {}:{} with storage memory:temp", reg_exp, self.namespace.name(), label_following)
+                            ]);
+                            // if branch
+                            self.new_label();
+                            self.generate_from_block(if_branch);
+                            self.working_mcfunction.append_command(&format!(
+                                "function {}:{} with storage memory:temp",
+                                self.namespace.name(),
+                                label_following
+                            ));
+                            // following
+                            self.new_label();
                         }
-                        // else {
-                        //     dest.append_commands(vec![
-                        //         &format!("scoreboard players set r{} registers 1", reg_acc),
-                        //         &format!("execute if score {} registers matches 0 run scoreboard players set r{} registers 0", reg_exp, reg_acc),
-                        //         &format!("execute if score r{} registers matches 1 run function {}:{} with storage memory:temp", reg_acc, dest_namespace.name(), if_branch_mcfuntion.name()),
-                        //     ]);
-                        //     *label_acc += 1;
-                        //     symbol_table.enter_scope();
-                        //     if_branch.to_commands(
-                        //         &mut if_branch_mcfuntion,
-                        //         dest_namespace,
-                        //         symbol_table,
-                        //         label_acc,
-                        //     );
-                        //     symbol_table.leave_scope();
-                        //     dest_namespace.append_mcfunction(if_branch_mcfuntion);
-                        // }
                     }
                     Stmt::Exp(exp) => {
-                        exp.to_commands(dest, dest_namespace, &mut 0, symbol_table);
+                        self.generate_from_exp(exp, &mut 0);
                     }
                 },
             }
         }
     }
-}
 
-impl Exp {
-    pub fn to_commands(
-        &mut self,
-        dest: &mut Mcfunction,
-        dest_namespace: &mut Namespace,
-        reg_acc: &mut u32,
-        symbol_table: &mut SymbolTable,
-    ) -> String {
-        self.call_function_first(dest, dest_namespace, reg_acc, symbol_table);
-        self.to_commands_impl(dest, dest_namespace, reg_acc, symbol_table)
+    fn generate_from_exp(&mut self, exp: &mut Exp, reg_acc: &mut u32) -> String {
+        self.generate_from_exp_call_function_first(exp, reg_acc);
+        self.generate_from_exp_eval(exp, reg_acc)
     }
 
-    fn to_commands_impl(
-        &self,
-        dest: &mut Mcfunction,
-        dest_namespace: &mut Namespace,
-        reg_acc: &mut u32,
-        symbol_table: &mut SymbolTable,
-    ) -> String {
-        match self {
+    fn generate_from_exp_eval(&mut self, exp: &mut Exp, reg_acc: &mut u32) -> String {
+        match exp {
             Exp::Number(num) => {
                 let reg_res = format!("r{}", reg_acc);
-                dest.append_command(&format!(
+                self.working_mcfunction.append_command(&format!(
                     "scoreboard players set {} registers {}",
                     reg_res, num
                 ));
@@ -292,19 +278,19 @@ impl Exp {
                 reg_res
             }
             Exp::Variable(ident) => {
-                let (is_local, symbol) = symbol_table.query_symbol(ident);
+                let (is_local, symbol) = self.symbol_table.query_symbol(ident);
                 let decorated_name = match symbol {
                     Symbol::Variable { decorated_name } => decorated_name,
                     Symbol::Function { params: _ } => panic!(),
                 };
                 let reg_res = format!("r{}", reg_acc);
                 if is_local {
-                    dest.append_command(&format!(
+                    self.working_mcfunction.append_command(&format!(
                         "$execute store result score {} registers run data get storage memory:stack frame[$(base_index)].{}",
                         reg_res, decorated_name
                     ));
                 } else {
-                    dest.append_command(&format!(
+                    self.working_mcfunction.append_command(&format!(
                         "$execute store result score {} registers run data get storage memory:global $({})",
                         reg_res, decorated_name
                     ));
@@ -313,22 +299,22 @@ impl Exp {
                 reg_res
             }
             Exp::UnaryExp(op, exp) => {
-                let reg_exp = exp.to_commands_impl(dest, dest_namespace, reg_acc, symbol_table);
+                let reg_exp = self.generate_from_exp_eval(exp, reg_acc);
                 let reg_res = format!("r{}", reg_acc);
                 *reg_acc += 1;
                 match op {
                     UnaryOp::Positive => {
-                        dest.append_command(&format!(
+                        self.working_mcfunction.append_command(&format!(
                             "scoreboard players operation {} registers = {} registers",
                             reg_res, reg_exp
                         ));
                     }
                     UnaryOp::Negative => {
-                        dest.append_command(&format!(
+                        self.working_mcfunction.append_command(&format!(
                             "scoreboard players set {} registers 0",
                             reg_res
                         ));
-                        dest.append_command(&format!(
+                        self.working_mcfunction.append_command(&format!(
                             "scoreboard players operation {} registers -= {} registers",
                             reg_res, reg_exp
                         ));
@@ -350,27 +336,29 @@ impl Exp {
                     BinaryOp::Eq => ("=", true, false),
                     BinaryOp::Ne => ("=", true, true),
                 };
-                let reg_lhs = lhs.to_commands_impl(dest, dest_namespace, reg_acc, symbol_table);
-                let reg_rhs = rhs.to_commands_impl(dest, dest_namespace, reg_acc, symbol_table);
+                let reg_lhs = self.generate_from_exp_eval(lhs, reg_acc);
+                let reg_rhs = self.generate_from_exp_eval(rhs, reg_acc);
                 let reg_res = format!("r{}", reg_acc);
                 if !is_rel {
-                    dest.append_command(&format!(
+                    self.working_mcfunction.append_command(&format!(
                         "scoreboard players operation {} registers = {} registers",
                         reg_res, reg_lhs
                     ));
-                    dest.append_command(&format!(
+                    self.working_mcfunction.append_command(&format!(
                         "scoreboard players operation {} registers {} {} registers",
                         reg_res, op, reg_rhs
                     ));
                 } else if !is_ne {
-                    dest.append_command(&format!("scoreboard players set {} registers 0", reg_res));
-                    dest.append_command(&format!(
+                    self.working_mcfunction
+                        .append_command(&format!("scoreboard players set {} registers 0", reg_res));
+                    self.working_mcfunction.append_command(&format!(
                         "execute if score {} registers {} {} registers run scoreboard players set {} registers 1",
                         reg_lhs, op, reg_rhs, reg_res
                     ));
                 } else {
-                    dest.append_command(&format!("scoreboard players set {} registers 1", reg_res));
-                    dest.append_command(&format!(
+                    self.working_mcfunction
+                        .append_command(&format!("scoreboard players set {} registers 1", reg_res));
+                    self.working_mcfunction.append_command(&format!(
                         "execute if score {} registers {} {} registers run scoreboard players set {} registers 0",
                         reg_lhs, op, reg_rhs, reg_res
                     ));
@@ -386,37 +374,31 @@ impl Exp {
         }
     }
 
-    fn call_function_first(
-        &mut self,
-        dest: &mut Mcfunction,
-        dest_namespace: &mut Namespace,
-        reg_acc: &mut u32,
-        symbol_table: &mut SymbolTable,
-    ) {
-        match self {
+    fn generate_from_exp_call_function_first(&mut self, exp: &mut Exp, reg_acc: &mut u32) {
+        match exp {
             Exp::FuncCall {
                 func_ident,
                 arguments,
                 reg_res,
             } => {
                 for (i, arg) in arguments.iter_mut().enumerate() {
-                    let reg_res = arg.to_commands(dest, dest_namespace, reg_acc, symbol_table);
-                    let (_, symbol) = symbol_table.query_symbol(&func_ident);
+                    let reg_res = self.generate_from_exp(arg, reg_acc);
+                    let (_, symbol) = self.symbol_table.query_symbol(&func_ident);
                     let params = match symbol {
                         Symbol::Variable { decorated_name: _ } => panic!(),
                         Symbol::Function { params } => params,
                     };
-                    dest.append_command(
+                    self.working_mcfunction.append_command(
                         &format!("execute store result storage memory:temp arguments.{}@1 int 1.0 run scoreboard players get {} registers",
                         params[i].ident,
                         reg_res
                     ));
                 }
                 *reg_res = format!("r{}", reg_acc);
-                dest.append_commands(vec![
+                self.working_mcfunction.append_commands(vec![
                     &format!(
-                        "function {}:{} with memory:temp",
-                        dest_namespace.name(),
+                        "function {}:{} with storage memory:temp",
+                        self.namespace.name(),
                         func_ident
                     ),
                     &format!(
@@ -427,13 +409,22 @@ impl Exp {
                 *reg_acc += 1;
             }
             Exp::UnaryExp(_, exp) => {
-                exp.call_function_first(dest, dest_namespace, reg_acc, symbol_table);
+                self.generate_from_exp_call_function_first(exp, reg_acc);
             }
             Exp::BinaryExp(_, lhs, rhs) => {
-                lhs.call_function_first(dest, dest_namespace, reg_acc, symbol_table);
-                rhs.call_function_first(dest, dest_namespace, reg_acc, symbol_table);
+                self.generate_from_exp_call_function_first(lhs, reg_acc);
+                self.generate_from_exp_call_function_first(rhs, reg_acc);
             }
             _ => {}
         }
+    }
+
+    fn new_label(&mut self) -> String {
+        self.namespace
+            .append_mcfunction(self.working_mcfunction.clone());
+        self.label_acc += 1;
+        let mcfunction_name = format!("{}-label_{}", self.working_function_ident, self.label_acc);
+        self.working_mcfunction = Mcfunction::new(mcfunction_name.clone());
+        mcfunction_name
     }
 }

@@ -5,6 +5,17 @@ fn fib(n) {
     return fib(n - 1) + fib(n - 2);
 }
 
+fn sum(n) {
+    if n == 0 {
+        return 0;
+    }
+    return n + sum(n - 1);
+}
+
+fn one() {
+    return 1;
+}
+
 fn main() {
-    return fib(12);
+    return one() + one();
 }

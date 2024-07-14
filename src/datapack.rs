@@ -3,16 +3,19 @@ use std::{
     io::{Result, Write},
 };
 
+#[derive(Clone)]
 pub struct Datapack {
     name: String,
     namespaces: Vec<Namespace>,
 }
 
+#[derive(Clone)]
 pub struct Namespace {
     name: String,
     mcfunctions: Vec<Mcfunction>,
 }
 
+#[derive(Clone)]
 pub struct Mcfunction {
     name: String,
     content: String,
