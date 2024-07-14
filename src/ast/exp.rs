@@ -19,4 +19,10 @@ pub enum BinaryOp {
     Mul,
     Div,
     Mod,
+    Lt,
+    Gt,
+    Le,
+    Ge,
+    Eq,
+    Ne,
 }

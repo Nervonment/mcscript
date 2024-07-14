@@ -68,7 +68,6 @@ impl FuncDef {
         ]);
         dest.append_mcfunction(entry);
 
-        
         let mut body = Mcfunction::new(format!("{}-body", self.ident.clone()));
         self.block.to_commands(&mut body, symbol_table);
 
@@ -76,12 +75,12 @@ impl FuncDef {
 
         // let mut push_frame = Mcfunction::new(format!("{}-push_frame", self.ident.clone()));
         // push_frame.append_commands(vec![
-            // local variables
-            // "$data modify storage memory:stack frame[$(base_index)] merge value {}",
-            // arguments
-            // "$data modify storage memory:stack frame[$(base_index)] merge value {}",
-            // base index
-            // "$data modify storage memory:stack frame[$(base_index)] merge value {base_index: $(base_index)}",
+        // local variables
+        // "$data modify storage memory:stack frame[$(base_index)] merge value {}",
+        // arguments
+        // "$data modify storage memory:stack frame[$(base_index)] merge value {}",
+        // base index
+        // "$data modify storage memory:stack frame[$(base_index)] merge value {base_index: $(base_index)}",
         // ]);
         // dest.append_mcfunction(push_frame);
     }
@@ -208,25 +207,51 @@ impl Exp {
                 reg_res
             }
             Exp::BinaryExp(op, lhs, rhs) => {
-                let op = match op {
-                    BinaryOp::Add => "+=",
-                    BinaryOp::Sub => "-=",
-                    BinaryOp::Mul => "*=",
-                    BinaryOp::Div => "/=",
-                    BinaryOp::Mod => "%=",
+                let (op, is_rel, is_ne) = match op {
+                    BinaryOp::Add => ("+=", false, false),
+                    BinaryOp::Sub => ("-=", false, false),
+                    BinaryOp::Mul => ("*=", false, false),
+                    BinaryOp::Div => ("/=", false, false),
+                    BinaryOp::Mod => ("%=", false, false),
+                    BinaryOp::Lt => ("<", true, false),
+                    BinaryOp::Le => ("<=", true, false),
+                    BinaryOp::Gt => (">", true, false),
+                    BinaryOp::Ge => (">=", true, false),
+                    BinaryOp::Eq => ("=", true, false),
+                    BinaryOp::Ne => ("=", true, true),
                 };
                 let reg_lhs = lhs.to_commands(dest, reg_acc, symbol_table);
                 let reg_rhs = rhs.to_commands(dest, reg_acc, symbol_table);
                 let reg_res = format!("r{}", reg_acc);
+                if !is_rel {
+                    dest.append_command(&format!(
+                        "scoreboard players operation {} registers = {} registers",
+                        reg_res, reg_lhs
+                    ));
+                    dest.append_command(&format!(
+                        "scoreboard players operation {} registers {} {} registers",
+                        reg_res, op, reg_rhs
+                    ));
+                } else if !is_ne {
+                    dest.append_command(&format!(
+                        "scoreboard players set {} registers 0",
+                        reg_res
+                    ));
+                    dest.append_command(&format!(
+                        "execute if score {} registers {} {} registers run scoreboard players set {} registers 1",
+                        reg_lhs, op, reg_rhs, reg_res
+                    ));
+                } else {
+                    dest.append_command(&format!(
+                        "scoreboard players set {} registers 1",
+                        reg_res
+                    ));
+                    dest.append_command(&format!(
+                        "execute if score {} registers {} {} registers run scoreboard players set {} registers 0",
+                        reg_lhs, op, reg_rhs, reg_res
+                    ));
+                }
                 *reg_acc += 1;
-                dest.append_command(&format!(
-                    "scoreboard players operation {} registers = {} registers",
-                    reg_res, reg_lhs
-                ));
-                dest.append_command(&format!(
-                    "scoreboard players operation {} registers {} {} registers",
-                    reg_res, op, reg_rhs
-                ));
                 reg_res
             }
         }
