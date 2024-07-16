@@ -3,6 +3,8 @@ use std::{
     io::{Result, Write},
 };
 
+pub mod mcscript_datapack;
+
 #[derive(Clone)]
 pub struct Datapack {
     name: String,
