@@ -45,6 +45,7 @@ Stmt: Stmt = {
     AssignStmt,
     Block => Stmt::Block(<>),
     IfElseStmt,
+    WhileStmt,
     <Exp> ";" => Stmt::Exp(<>),
 }
 
@@ -60,6 +61,10 @@ IfElseStmt: Stmt = {
     "if" <exp: Exp> <if_branch: Block> => Stmt::IfElse { exp, if_branch: if_branch, else_branch: None },
     "if" <exp: Exp> <if_branch: Block> "else" <else_branch: Block> => Stmt::IfElse { exp, if_branch, else_branch: Some(else_branch)},
     "if" <exp: Exp> <if_branch: Block> "else" <else_branch: IfElseStmt> => Stmt::IfElse { exp, if_branch, else_branch: Some(Block(vec![BlockItem::Stmt(else_branch)])) },
+}
+
+WhileStmt: Stmt = {
+    "while" <exp: Exp> <body: Block> => Stmt::While { <> }
 }
 
 Number: i32 = IntConst;

@@ -8,15 +8,29 @@ fn fib(n) {
 }
 
 fn sum(n) {
-    if n == 0 {
-        return 0;
+    let s = 0;
+    while n > 0 {
+        s = s + n;
+        n = n - 1;
     }
-    return n + sum(n - 1);
+    return s;
+}
+
+fn sum_sum(n) {
+    let s = 0;
+    while n > 0 {
+        let s1 = 0;
+        let i = n;
+        while i > 0 {
+            s1 = s1 + i;
+            i = i - 1;
+        }
+        s = s + s1;
+        n = n - 1;
+    }
+    return s;
 }
 
 fn main() {
-    let a = sum(100);
-    a = a - 5050;
-    a = a + fib(10);
-    return a;
+    return sum_sum(50);
 }

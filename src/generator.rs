@@ -253,6 +253,51 @@ impl Generator {
                             self.new_label();
                         }
                     }
+                    Stmt::While { exp, body } => {
+                        let label_judge = format!(
+                            "{}-label_{}",
+                            self.working_function_ident,
+                            self.label_acc + 1
+                        );
+                        let label_while_body = format!(
+                            "{}-label_{}",
+                            self.working_function_ident,
+                            self.label_acc + 2
+                        );
+                        let label_following = format!(
+                            "{}-label_{}",
+                            self.working_function_ident,
+                            self.label_acc + 3
+                        );
+                        self.working_mcfunction.append_commands(vec![&format!(
+                            "function {}:{} with storage memory:temp",
+                            self.namespace.name(),
+                            label_judge
+                        )]);
+                        // judge
+                        self.new_label();
+                        let mut reg_acc = 0;
+                        let reg_exp = self.generate_from_exp(exp, &mut reg_acc);
+                        self.working_mcfunction.append_commands(vec![
+                            &format!("scoreboard players set r{} registers 1", reg_acc),
+                            &format!("execute if score {} registers matches 0 run scoreboard players set r{} registers 0", reg_exp, reg_acc),
+                            &format!("execute if score r{} registers matches 1 run function {}:{} with storage memory:temp", reg_acc, self.namespace.name(), label_while_body),
+                            &format!("execute if score {} registers matches 0 run function {}:{} with storage memory:temp", reg_exp, self.namespace.name(), label_following)
+                        ]);
+                        // while body
+                        self.new_label();
+                        self.generate_from_block(body);
+                        self.working_mcfunction.append_commands(vec![
+                            "",
+                            &format!(
+                                "function {}:{} with storage memory:temp",
+                                self.namespace.name(),
+                                label_judge
+                            ),
+                        ]);
+                        // following
+                        self.new_label();
+                    }
                     Stmt::Exp(exp) => {
                         self.generate_from_exp(exp, &mut 0);
                     }
@@ -410,51 +455,6 @@ impl Generator {
         }
     }
 
-    // fn generate_from_exp_call_function_first(&mut self, exp: &mut Exp, reg_acc: &mut u32) {
-    //     match exp {
-    //         Exp::FuncCall {
-    //             func_ident,
-    //             arguments,
-    //             reg_res,
-    //         } => {
-    //             for (i, arg) in arguments.iter_mut().enumerate() {
-    //                 let reg_res = self.generate_from_exp(arg, reg_acc);
-    //                 let (_, symbol) = self.symbol_table.query_symbol(&func_ident);
-    //                 let params = match symbol {
-    //                     Symbol::Variable { decorated_name: _ } => panic!(),
-    //                     Symbol::Function { params } => params,
-    //                 };
-    //                 self.working_mcfunction.append_command(
-    //                     &format!("execute store result storage memory:temp arguments.{}@1 int 1.0 run scoreboard players get {} registers",
-    //                     params[i].ident,
-    //                     reg_res
-    //                 ));
-    //             }
-    //             *reg_res = format!("r{}", reg_acc);
-    //             self.working_mcfunction.append_commands(vec![
-    //                 &format!(
-    //                     "function {}:{} with storage memory:temp",
-    //                     self.namespace.name(),
-    //                     func_ident
-    //                 ),
-    //                 &format!(
-    //                     "scoreboard players operation {} registers = return_value registers",
-    //                     reg_res
-    //                 ),
-    //             ]);
-    //             *reg_acc += 1;
-    //         }
-    //         Exp::UnaryExp(_, exp) => {
-    //             self.generate_from_exp_call_function_first(exp, reg_acc);
-    //         }
-    //         Exp::BinaryExp(_, lhs, rhs) => {
-    //             self.generate_from_exp_call_function_first(lhs, reg_acc);
-    //             self.generate_from_exp_call_function_first(rhs, reg_acc);
-    //         }
-    //         _ => {}
-    //     }
-    // }
-
     fn new_label(&mut self) -> String {
         self.namespace
             .append_mcfunction(self.working_mcfunction.clone());
@@ -462,5 +462,16 @@ impl Generator {
         let mcfunction_name = format!("{}-label_{}", self.working_function_ident, self.label_acc);
         self.working_mcfunction = Mcfunction::new(mcfunction_name.clone());
         mcfunction_name
+    }
+
+    fn new_label_1(&mut self) -> Mcfunction {
+        self.label_acc += 1;
+        let mcfunction_name = format!("{}-label_{}", self.working_function_ident, self.label_acc);
+        Mcfunction::new(mcfunction_name)
+    }
+
+    fn work_with_next_function(&mut self, next_mcfunction: Mcfunction) {
+        self.namespace.append_mcfunction(self.working_mcfunction.clone());
+        self.working_mcfunction = next_mcfunction;
     }
 }

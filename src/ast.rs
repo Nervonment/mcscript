@@ -49,5 +49,9 @@ pub enum Stmt {
         if_branch: Block,
         else_branch: Option<Block>,
     },
+    While {
+        exp: Box<Exp>,
+        body: Block,
+    },
     Exp(Box<Exp>),
 }
