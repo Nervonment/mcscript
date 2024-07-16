@@ -43,6 +43,7 @@ Decl: Decl = {
 Stmt: Stmt = {
     ReturnStmt,
     AssignStmt,
+    OpAssignStmt,
     Block => Stmt::Block(<>),
     IfElseStmt,
     WhileStmt,
@@ -57,6 +58,14 @@ ReturnStmt: Stmt = {
 
 AssignStmt: Stmt = {
     <ident: Ident> "=" <new_value: Exp> ";" => Stmt::Assign { <> }
+}
+
+OpAssignStmt: Stmt = {
+    <ident: Ident> "+=" <value: Exp> ";" => Stmt::Assign { ident: ident.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Add, Box::new(Exp::Variable(ident)), value)) },
+    <ident: Ident> "-=" <value: Exp> ";" => Stmt::Assign { ident: ident.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Sub, Box::new(Exp::Variable(ident)), value)) },
+    <ident: Ident> "*=" <value: Exp> ";" => Stmt::Assign { ident: ident.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Mul, Box::new(Exp::Variable(ident)), value)) },
+    <ident: Ident> "/=" <value: Exp> ";" => Stmt::Assign { ident: ident.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Div, Box::new(Exp::Variable(ident)), value)) },
+    <ident: Ident> "%=" <value: Exp> ";" => Stmt::Assign { ident: ident.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Mod, Box::new(Exp::Variable(ident)), value)) },
 }
 
 IfElseStmt: Stmt = {
