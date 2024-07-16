@@ -21,20 +21,28 @@ fn sum(n) {
 
 fn sum_sum(n) {
     let s = 0;
-    while n > 0 {
-        let ss = 0;
+    while 1 {
+        let s1 = 0;
         let i = n;
-        while i > 0 {
-            ss = ss + i;
-            i = i - 1;
+        if n < 1 {
+            break;
         }
-        s = s + ss;
-        //s = s + sum(n);
+        while 1 {
+            if i < 1 {
+                break;
+            }
+            s1 = s1 + i;
+            i = i - 1;
+            continue;
+        }
+        s = s + s1;
         n = n - 1;
+        continue;
+        s = 0;
     }
     return s;
 }
 
 fn main() {
-    return fib(10);
+    return sum_sum(100);
 }

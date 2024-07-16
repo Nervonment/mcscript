@@ -46,6 +46,8 @@ Stmt: Stmt = {
     Block => Stmt::Block(<>),
     IfElseStmt,
     WhileStmt,
+    "break" ";" => Stmt::Break,
+    "continue" ";" => Stmt::Continue,
     <Exp> ";" => Stmt::Exp(<>),
 }
 

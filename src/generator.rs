@@ -76,6 +76,8 @@ pub struct Generator {
     working_function_ident: String,
     working_mcfunction: Option<Mcfunction>,
     label_acc: u32,
+    break_labels: Vec<String>,
+    continue_labels: Vec<String>,
 }
 
 impl Generator {
@@ -87,6 +89,8 @@ impl Generator {
             working_function_ident: "".into(),
             working_mcfunction: None,
             label_acc: 0,
+            break_labels: vec![],
+            continue_labels: vec![],
         }
     }
 
@@ -253,6 +257,9 @@ impl Generator {
 
                         let label_judge_name = label_judge.name().to_owned();
 
+                        self.break_labels.push(label_following.name().to_owned());
+                        self.continue_labels.push(label_judge.name().to_owned());
+
                         self.working_mcfunction
                             .as_mut()
                             .unwrap()
@@ -285,10 +292,32 @@ impl Generator {
                                 ),
                             ]);
                         // following
+                        self.break_labels.pop();
+                        self.continue_labels.pop();
                         self.work_with_next_mcfunction(label_following);
                     }
                     Stmt::Exp(exp) => {
                         self.generate_from_exp(exp, &mut 0);
+                    }
+                    Stmt::Break => {
+                        self.working_mcfunction
+                            .as_mut()
+                            .unwrap()
+                            .append_command(&format!(
+                                "return run function {}:{} with storage memory:temp",
+                                self.namespace.name(),
+                                self.break_labels.last().unwrap(),
+                            ));
+                    }
+                    Stmt::Continue => {
+                        self.working_mcfunction
+                            .as_mut()
+                            .unwrap()
+                            .append_command(&format!(
+                                "return run function {}:{} with storage memory:temp",
+                                self.namespace.name(),
+                                self.continue_labels.last().unwrap(),
+                            ));
                     }
                 },
             }

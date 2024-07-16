@@ -53,5 +53,7 @@ pub enum Stmt {
         exp: Box<Exp>,
         body: Block,
     },
+    Break,
+    Continue,
     Exp(Box<Exp>),
 }
