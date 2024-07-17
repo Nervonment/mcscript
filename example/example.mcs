@@ -5,6 +5,14 @@ fn fib(n) {
     return fib(n - 1) + fib(n - 2);
 }
 
+fn sum4(a, b, c, d) {
+    {
+     //   let a = 0;
+        a += 1;
+    }
+    return a + 2 * b + 3 * c + 4 * d;
+}
+
 fn main() {
-    return fib(10);
+    return sum4(1, 2, 3, 4);
 }

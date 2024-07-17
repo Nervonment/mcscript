@@ -19,7 +19,7 @@ pub Program: Program =<func_defs: (<FuncDef>)*> => Program { <> };
 FuncDef: FuncDef = {
     "fn" <ident: Ident> "(" <param: FuncParam?> <mut params: ("," <FuncParam>)*> ")" <block: Block> => {
         if param.is_some() {
-            params.push(param.unwrap());
+            params.insert(0, param.unwrap());
         }
         FuncDef { ident, params, block }
     }
@@ -93,7 +93,7 @@ PrimaryExp: Box<Exp> = {
     Ident => Box::new(Exp::Variable(<>)),
     <func_ident: Ident> "(" <arg: Exp?> <mut args: ("," <Exp>)*> ")" => {
         if arg.is_some() {
-            args.push(arg.unwrap());
+            args.insert(0, arg.unwrap());
         }
         Box::new(Exp::FuncCall { func_ident, arguments: args })
     },

@@ -9,9 +9,8 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub enum Symbol {
-    Variable { decorated_name: String },
-    Function { params: Vec<FuncParam> },
+pub struct Symbol {
+    decorated_name: String,
 }
 
 pub struct SymbolTable(Vec<HashMap<String, Symbol>>);
@@ -35,7 +34,7 @@ impl SymbolTable {
         }
         let mut decorated_name = ident.to_owned();
         decorated_name.push_str(&format!("@{}", self.0.len() - 1));
-        let symbol = Symbol::Variable {
+        let symbol = Symbol {
             decorated_name: decorated_name.clone(),
         };
         self.0
@@ -45,19 +44,29 @@ impl SymbolTable {
         symbol
     }
 
-    pub fn new_function(&mut self, func_def: &FuncDef) -> Symbol {
-        if self.0.first().unwrap().contains_key(&func_def.ident) {
-            panic!();
+    pub fn set_parameters(&mut self, params: &Vec<FuncParam>) {
+        for (i, param) in params.iter().enumerate() {
+            let decorated_name = format!("%{}", i);
+            self.0
+                .last_mut()
+                .unwrap()
+                .insert(param.ident.clone(), Symbol { decorated_name });
         }
-        let symbol = Symbol::Function {
-            params: func_def.params.clone(),
-        };
-        self.0
-            .first_mut()
-            .unwrap()
-            .insert(func_def.ident.clone(), symbol.clone());
-        symbol
     }
+
+    // pub fn new_function(&mut self, func_def: &FuncDef) -> Symbol {
+    //     if self.0.first().unwrap().contains_key(&func_def.ident) {
+    //         panic!();
+    //     }
+    //     let symbol = Symbol::Function {
+    //         params: func_def.params.clone(),
+    //     };
+    //     self.0
+    //         .first_mut()
+    //         .unwrap()
+    //         .insert(func_def.ident.clone(), symbol.clone());
+    //     symbol
+    // }
 
     pub fn query_symbol(&self, ident: &str) -> (bool, Symbol) {
         for (level, scope) in self.0.iter().enumerate().rev() {
@@ -106,7 +115,7 @@ impl Generator {
 
     fn generate_from_func_def(&mut self, func_def: &mut FuncDef) {
         self.working_function_ident = func_def.ident.clone();
-        self.symbol_table.new_function(func_def);
+        // self.symbol_table.new_function(func_def);
 
         let mut entry = Mcfunction::new(self.working_function_ident.clone());
         entry.append_commands(vec![
@@ -123,9 +132,10 @@ impl Generator {
         self.label_acc = 0;
         self.working_mcfunction = Some(self.new_label());
         self.symbol_table.enter_scope();
-        for param in &func_def.params {
-            self.symbol_table.new_variable(&param.ident);
-        }
+        self.symbol_table.set_parameters(&func_def.params);
+        // for param in &func_def.params {
+        //     self.symbol_table.new_variable(&param.ident);
+        // }
         self.generate_from_block(&mut func_def.block);
         self.symbol_table.leave_scope();
 
@@ -137,10 +147,11 @@ impl Generator {
         for block_item in &mut block.0 {
             match block_item {
                 BlockItem::Decl(decl) => {
-                    let decorated_name = match self.symbol_table.new_variable(&decl.ident) {
-                        Symbol::Variable { decorated_name } => decorated_name,
-                        Symbol::Function { params: _ } => unreachable!(),
-                    };
+                    // let decorated_name = match self.symbol_table.new_variable(&decl.ident) {
+                    //     Symbol::Variable { decorated_name } => decorated_name,
+                    //     Symbol::Function { params: _ } => unreachable!(),
+                    // };
+                    let decorated_name = self.symbol_table.new_variable(&decl.ident).decorated_name;
                     let reg_res = self.generate_from_exp(&mut decl.init_value, &mut 0);
                     self.working_mcfunction.as_mut().unwrap().append_commands(vec![
                         &format!("$execute store result storage memory:stack frame[$(base_index)].{} int 1.0 run scoreboard players get {} registers", decorated_name, reg_res)
@@ -160,10 +171,11 @@ impl Generator {
                     }
                     Stmt::Assign { ident, new_value } => {
                         let (is_local, symbol) = self.symbol_table.query_symbol(ident);
-                        let decorated_name = match symbol {
-                            Symbol::Variable { decorated_name } => decorated_name,
-                            Symbol::Function { params: _ } => panic!(),
-                        };
+                        // let decorated_name = match symbol {
+                        //     Symbol::Variable { decorated_name } => decorated_name,
+                        //     Symbol::Function { params: _ } => panic!(),
+                        // };
+                        let decorated_name = symbol.decorated_name;
                         let reg_res = self.generate_from_exp(new_value, &mut 0);
                         self.working_mcfunction.as_mut().unwrap().append_commands(vec![
                             &if is_local {
@@ -340,10 +352,11 @@ impl Generator {
             }
             Exp::Variable(ident) => {
                 let (is_local, symbol) = self.symbol_table.query_symbol(ident);
-                let decorated_name = match symbol {
-                    Symbol::Variable { decorated_name } => decorated_name,
-                    Symbol::Function { params: _ } => panic!(),
-                };
+                // let decorated_name = match symbol {
+                //     Symbol::Variable { decorated_name } => decorated_name,
+                //     Symbol::Function { params: _ } => panic!(),
+                // };
+                let decorated_name = symbol.decorated_name;
                 let reg_res = format!("r{}", reg_acc);
                 if is_local {
                     self.working_mcfunction.as_mut().unwrap().append_command(&format!(
@@ -461,14 +474,14 @@ impl Generator {
                 let mut reg_acc_1 = 0;
                 for (i, arg) in arguments.iter_mut().enumerate() {
                     let reg_res = self.generate_from_exp(arg, &mut reg_acc_1);
-                    let (_, symbol) = self.symbol_table.query_symbol(&func_ident);
-                    let params = match symbol {
-                        Symbol::Variable { decorated_name: _ } => panic!(),
-                        Symbol::Function { params } => params,
-                    };
+                    // let (_, symbol) = self.symbol_table.query_symbol(&func_ident);
+                    // let params = match symbol {
+                    //     Symbol::Variable { decorated_name: _ } => panic!(),
+                    //     Symbol::Function { params } => params,
+                    // };
                     self.working_mcfunction.as_mut().unwrap().append_command(
-                        &format!("execute store result storage memory:temp arguments.{}@1 int 1.0 run scoreboard players get {} registers",
-                        params[i].ident,
+                        &format!("execute store result storage memory:temp arguments.%{} int 1.0 run scoreboard players get {} registers",
+                        i,
                         reg_res
                     ));
                 }
