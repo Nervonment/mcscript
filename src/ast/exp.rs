@@ -5,6 +5,7 @@ pub enum Exp {
     Number(i32),
     Variable(String),
     FuncCall {
+        namespace: Option<String>,
         func_ident: String,
         arguments: Vec<Box<Exp>>,
     },

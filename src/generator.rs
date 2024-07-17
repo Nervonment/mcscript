@@ -5,7 +5,7 @@ use crate::{
         exp::{BinaryOp, Exp, UnaryOp},
         Block, BlockItem, FuncDef, FuncParam, Program, Stmt,
     },
-    datapack::{Datapack, Mcfunction, Namespace},
+    datapack::{Mcfunction, Namespace},
 };
 
 #[derive(Clone)]
@@ -80,7 +80,6 @@ impl SymbolTable {
 
 pub struct Generator {
     symbol_table: SymbolTable,
-    pack_name: String,
     namespace: Namespace,
     working_function_ident: String,
     working_mcfunction: Option<Mcfunction>,
@@ -90,11 +89,10 @@ pub struct Generator {
 }
 
 impl Generator {
-    pub fn new(pack_name: String) -> Self {
+    pub fn new(namespace: String) -> Self {
         Self {
             symbol_table: SymbolTable::new(),
-            pack_name: pack_name.clone(),
-            namespace: Namespace::new(pack_name),
+            namespace: Namespace::new(namespace),
             working_function_ident: "".into(),
             working_mcfunction: None,
             label_acc: 0,
@@ -103,14 +101,12 @@ impl Generator {
         }
     }
 
-    pub fn generate(&mut self, mut program: Program) -> Datapack {
+    pub fn generate(&mut self, mut program: Program) -> Namespace {
         for func_def in &mut program.func_defs {
             self.generate_from_func_def(func_def);
         }
 
-        let mut datapack = Datapack::new(self.pack_name.clone());
-        datapack.append_namespace(self.namespace.clone());
-        datapack
+        self.namespace.clone()
     }
 
     fn generate_from_func_def(&mut self, func_def: &mut FuncDef) {
@@ -460,6 +456,7 @@ impl Generator {
                 reg_res
             }
             Exp::FuncCall {
+                namespace,
                 func_ident,
                 arguments,
             } => {
@@ -491,7 +488,11 @@ impl Generator {
                     .append_commands(vec![
                         &format!(
                             "function {}:{} with storage memory:temp",
-                            self.namespace.name(),
+                            if namespace.is_some() {
+                                namespace.clone().unwrap()
+                            } else {
+                                self.namespace.name().to_owned()
+                            },
                             func_ident
                         ),
                         &format!(

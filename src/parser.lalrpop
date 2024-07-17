@@ -91,14 +91,16 @@ Exp: Box<Exp> = EqExp;
 PrimaryExp: Box<Exp> = {
     Number => Box::new(Exp::Number(<>)),
     Ident => Box::new(Exp::Variable(<>)),
-    <func_ident: Ident> "(" <arg: Exp?> <mut args: ("," <Exp>)*> ")" => {
+    <namespace: NamespacePrefix?> <func_ident: Ident> "(" <arg: Exp?> <mut args: ("," <Exp>)*> ")" => {
         if arg.is_some() {
             args.insert(0, arg.unwrap());
         }
-        Box::new(Exp::FuncCall { func_ident, arguments: args })
+        Box::new(Exp::FuncCall { namespace, func_ident, arguments: args })
     },
     "(" <Exp> ")",
 }
+
+NamespacePrefix: String = <Ident> "::";
 
 FuncArg: Box<Exp> = Exp;
 
