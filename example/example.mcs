@@ -1,11 +1,19 @@
-fn f(a: int, arr: Array<Array<int>>) -> Array<Array<int>> {
-    return arr;
+fn get_arr(arr: Array<int>) -> Array<int> {
+    let arr1 = arr;
+    let arr2 = arr1;
+    arr2 = arr;
+    return arr2;
+}
+
+fn get_arr_1(arr: Array<int>) -> Array<int> {
+    return get_arr(arr);
+}
+
+fn get_arr_2(arr: Array<int>) -> Array<int> {
+    let arr1 = get_arr(arr);
+    return arr1;
 }
 
 fn main() -> int {
-    return;
-}
-
-fn add_1(x: int) -> int {
     return 1;
 }

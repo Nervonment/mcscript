@@ -15,9 +15,12 @@ pub fn mcscript_datapack() -> Datapack {
         "scoreboard players remove base_index registers 1",
         "execute store result storage memory:temp base_index int 1.0 run scoreboard players get base_index registers",
     ]);
+    let mut mov_m_m = Mcfunction::new("mov_m_m".into());
+    mov_m_m.append_command("$data modify storage $(target_path) set from storage $(src_path)");
     let mut namespace = Namespace::new("mcscript".into());
     namespace.append_mcfunction(init);
     namespace.append_mcfunction(pop_frame);
+    namespace.append_mcfunction(mov_m_m);
     let mut datapack = Datapack::new("mcscript".into());
     datapack.append_namespace(namespace);
     datapack

@@ -1,5 +1,5 @@
 use mcscript::ast::{
-    Program, FuncDef, Block, BlockItem, Stmt, Decl, FuncParam, DataType,
+    CompileUnit, FuncDef, Block, BlockItem, Stmt, Decl, FuncParam, DataType,
     exp::{ Exp, UnaryOp, BinaryOp },
 };
 
@@ -14,7 +14,7 @@ match {
     _
 }
 
-pub Program: Program =<func_defs: (<FuncDef>)*> => Program { <> };
+pub CompileUnit: CompileUnit =<func_defs: (<FuncDef>)*> => CompileUnit { <> };
 
 FuncDef: FuncDef = {
     "fn" <ident: Ident> "(" <param: FuncParam?> <mut params: ("," <FuncParam>)*> ")" <func_type: FuncType?> <block: Block> => {
@@ -60,7 +60,7 @@ Stmt: Stmt = {
 }
 
 ReturnStmt: Stmt = {
-    "return" <return_value: Exp> ";" => Stmt::Return { <> }
+    "return" <return_value: Exp?> ";" => Stmt::Return { <> }
 }
 
 AssignStmt: Stmt = {
