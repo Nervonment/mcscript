@@ -9,6 +9,10 @@ pub enum Exp {
         func_ident: String,
         arguments: Vec<Box<Exp>>,
     },
+    NewArray {
+        length: Box<Exp>,
+        element: Box<Exp>,
+    },
 }
 
 #[derive(Debug, Clone)]

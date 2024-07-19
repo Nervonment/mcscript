@@ -1,19 +1,8 @@
-fn get_arr(arr: Array<int>) -> Array<int> {
-    let arr1 = arr;
-    let arr2 = arr1;
-    arr2 = arr;
-    return arr2;
+fn get_arr(length: int, a: int) -> Array<Array<Array<int>>> {
+    let arr = new Array(length, new Array(length, new Array(length, fib::fib(a))));
+    return arr;
 }
 
-fn get_arr_1(arr: Array<int>) -> Array<int> {
-    return get_arr(arr);
-}
-
-fn get_arr_2(arr: Array<int>) -> Array<int> {
-    let arr1 = get_arr(arr);
-    return arr1;
-}
-
-fn main() -> int {
-    return 1;
+fn main() -> Array<Array<Array<int>>> {
+    return get_arr(2, 11);
 }

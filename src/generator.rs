@@ -752,6 +752,111 @@ impl Generator {
                     ExpVal::Int { reg: "".into() }
                 }
             }
+            Exp::NewArray { length, element } => {
+                let label_judge = self.new_label();
+                let label_while_body = self.new_label();
+                let label_following = self.new_label();
+
+                let label_judge_name = label_judge.name().to_owned();
+
+                let length_val = self.generate_from_exp(length, reg_acc, path_acc, arr_acc);
+                let element_val = self.generate_from_exp(element, reg_acc, path_acc, arr_acc);
+                match length_val {
+                    ExpVal::Int { reg: reg_len } => {
+                        let reg_current_len = format!("r{}", reg_acc);
+                        *reg_acc += 1;
+                        let arr_path = Path(
+                            "memory:stack".into(),
+                            format!("frame[$(base_index)].%arr{}", arr_acc),
+                        );
+                        *arr_acc += 1;
+                        let path_path = Path(
+                            "memory:stack".into(),
+                            format!("frame[$(base_index)].%path{}", path_acc),
+                        );
+                        *path_acc += 1;
+                        self.working_mcfunction
+                            .as_mut()
+                            .unwrap()
+                            .append_commands(vec![
+                                &format!(
+                                    "$data modify storage {} {} set value []",
+                                    arr_path.0, arr_path.1
+                                ),
+                                &format!(
+                                    "$data modify storage {} {} set value \"{} {}\"",
+                                    path_path.0, path_path.1, arr_path.0, arr_path.1
+                                ),
+                                &format!("scoreboard players set {} registers 0", reg_current_len),
+                                &format!(
+                                    "function {}:{} with storage memory:temp",
+                                    self.working_namespace.as_ref().unwrap().name(),
+                                    label_judge.name()
+                                ),
+                            ]);
+                        // judge
+                        self.work_with_next_mcfunction(label_judge);
+                        self.working_mcfunction.as_mut().unwrap().append_commands(vec![
+                            &format!("execute if score {} registers >= {} registers run return run function {}:{} with storage memory:temp", reg_current_len, reg_len, self.working_namespace.as_ref().unwrap().name(), label_following.name()),
+                            &format!("function {}:{} with storage memory:temp", self.working_namespace.as_ref().unwrap().name(), label_while_body.name()),
+                        ]);
+                        // append
+                        self.work_with_next_mcfunction(label_while_body);
+                        match &element_val {
+                            ExpVal::Int { reg } => {
+                                self.working_mcfunction
+                                .as_mut()
+                                .unwrap()
+                                .append_commands(vec![
+                                    &format!("execute store result storage memory:temp element int 1.0 run scoreboard players get {} registers", reg),
+                                    &format!("$data modify storage {} {} append from storage memory:temp element", arr_path.0, arr_path.1),
+                                ]);
+                            }
+                            ExpVal::Array {
+                                element_type: _,
+                                path_path,
+                            } => {
+                                self.working_mcfunction
+                                    .as_mut()
+                                    .unwrap()
+                                    .append_commands(vec![
+                                        "data modify storage memory:temp target_path set value \"memory:temp element\"",
+                                        &format!("$data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
+                                        "function mcscript:mov_m_m with storage memory:temp",
+                                        &format!("$data modify storage {} {} append from storage memory:temp element", arr_path.0, arr_path.1),
+                                    ]);
+                            }
+                        }
+                        self.working_mcfunction
+                            .as_mut()
+                            .unwrap()
+                            .append_commands(vec![
+                                &format!("scoreboard players add {} registers 1", reg_current_len),
+                                "",
+                                &format!(
+                                    "function {}:{} with storage memory:temp",
+                                    self.working_namespace.as_ref().unwrap().name(),
+                                    label_judge_name
+                                ),
+                            ]);
+                        // following
+                        self.work_with_next_mcfunction(label_following);
+                        ExpVal::Array {
+                            element_type: match element_val {
+                                ExpVal::Int { reg: _ } => DataType::Int,
+                                ExpVal::Array {
+                                    element_type,
+                                    path_path: _,
+                                } => DataType::Array {
+                                    element_type: Box::new(element_type),
+                                },
+                            },
+                            path_path,
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
         }
     }
 

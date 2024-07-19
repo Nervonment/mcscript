@@ -104,12 +104,15 @@ PrimaryExp: Box<Exp> = {
         }
         Box::new(Exp::FuncCall { namespace, func_ident, arguments: args })
     },
+    NewArray,
     "(" <Exp> ")",
 }
 
 NamespacePrefix: String = <Ident> "::";
 
-FuncArg: Box<Exp> = Exp;
+NewArray: Box<Exp> = {
+    "new" "Array" "(" <length: Exp> "," <element: Exp> ")" => Box::new(Exp::NewArray{ <> }),
+}
 
 UnaryExp: Box<Exp> = {
     <op: UnaryOp> <exp: UnaryExp> => {

@@ -18,7 +18,7 @@ fn main() -> Result<()> {
         let path = Path::new(&arg);
         let input = read_to_string(arg.clone())?;
         let ast = parser::CompileUnitParser::new().parse(&input).unwrap();
-        // println!("{:#?}", ast);
+        println!("{:#?}", ast);
         compile_units.push((
             ast,
             path.file_stem().unwrap().to_owned().into_string().unwrap(),
