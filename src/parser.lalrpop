@@ -64,15 +64,15 @@ ReturnStmt: Stmt = {
 }
 
 AssignStmt: Stmt = {
-    <ident: Ident> "=" <new_value: Exp> ";" => Stmt::Assign { <> }
+    <lhs: Exp> "=" <new_value: Exp> ";" => Stmt::Assign { <> }
 }
 
 OpAssignStmt: Stmt = {
-    <ident: Ident> "+=" <value: Exp> ";" => Stmt::Assign { ident: ident.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Add, Box::new(Exp::Variable(ident)), value)) },
-    <ident: Ident> "-=" <value: Exp> ";" => Stmt::Assign { ident: ident.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Sub, Box::new(Exp::Variable(ident)), value)) },
-    <ident: Ident> "*=" <value: Exp> ";" => Stmt::Assign { ident: ident.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Mul, Box::new(Exp::Variable(ident)), value)) },
-    <ident: Ident> "/=" <value: Exp> ";" => Stmt::Assign { ident: ident.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Div, Box::new(Exp::Variable(ident)), value)) },
-    <ident: Ident> "%=" <value: Exp> ";" => Stmt::Assign { ident: ident.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Mod, Box::new(Exp::Variable(ident)), value)) },
+    <lhs: Exp> "+=" <value: Exp> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Add, lhs, value)) },
+    <lhs: Exp> "-=" <value: Exp> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Sub, lhs, value)) },
+    <lhs: Exp> "*=" <value: Exp> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Mul, lhs, value)) },
+    <lhs: Exp> "/=" <value: Exp> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Div, lhs, value)) },
+    <lhs: Exp> "%=" <value: Exp> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Mod, lhs, value)) },
 }
 
 IfElseStmt: Stmt = {
@@ -105,6 +105,7 @@ PrimaryExp: Box<Exp> = {
         Box::new(Exp::FuncCall { namespace, func_ident, arguments: args })
     },
     NewArray,
+    ArrayElement,
     "(" <Exp> ")",
 }
 
@@ -112,6 +113,14 @@ NamespacePrefix: String = <Ident> "::";
 
 NewArray: Box<Exp> = {
     "new" "Array" "(" <length: Exp> "," <element: Exp> ")" => Box::new(Exp::NewArray{ <> }),
+}
+
+ArrayElement: Box<Exp> = {
+    <array: PrimaryExp>  <subscript: Subscript> => Box::new(Exp::ArrayElement{ array, subscript })
+}
+
+Subscript: Box<Exp> = {
+    "[" <Exp> "]" => <>,
 }
 
 UnaryExp: Box<Exp> = {

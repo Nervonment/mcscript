@@ -1,8 +1,11 @@
-fn get_arr(length: int, a: int) -> Array<Array<Array<int>>> {
-    let arr = new Array(length, new Array(length, new Array(length, fib::fib(a))));
-    return arr;
-}
+fn main() -> Array<Array<int>> {
+    let a = 0;
+    a = 114514;
 
-fn main() -> Array<Array<Array<int>>> {
-    return get_arr(2, 11);
+    let arr = new Array(2, 1919810);
+    arr[0] = a;
+
+    let arr1 = new Array(2, new Array(2, fib::fib(20)));
+    arr1[0] = arr; 
+    return arr1;
 }

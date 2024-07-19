@@ -48,7 +48,7 @@ pub enum Stmt {
         return_value: Option<Box<Exp>>,
     },
     Assign {
-        ident: String,
+        lhs: Box<Exp>,
         new_value: Box<Exp>,
     },
     Block(Block),

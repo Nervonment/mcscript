@@ -4,6 +4,10 @@ pub enum Exp {
     BinaryExp(BinaryOp, Box<Exp>, Box<Exp>),
     Number(i32),
     Variable(String),
+    ArrayElement {
+        array: Box<Exp>,
+        subscript: Box<Exp>,
+    },
     FuncCall {
         namespace: Option<String>,
         func_ident: String,
