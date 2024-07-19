@@ -12,11 +12,19 @@ pub struct FuncDef {
     pub ident: String,
     pub params: Vec<FuncParam>,
     pub block: Block,
+    pub func_type: Option<DataType>,
 }
 
 #[derive(Debug, Clone)]
 pub struct FuncParam {
     pub ident: String,
+    pub data_type: DataType,
+}
+
+#[derive(Debug, Clone)]
+pub enum DataType {
+    Int,
+    Array { element_type: Box<DataType> },
 }
 
 #[derive(Debug, Clone)]

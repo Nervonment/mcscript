@@ -3,17 +3,17 @@ use std::collections::HashMap;
 use crate::{
     ast::{
         exp::{BinaryOp, Exp, UnaryOp},
-        Block, BlockItem, FuncDef, FuncParam, Program, Stmt,
+        Block, BlockItem, DataType, FuncDef, FuncParam, Program, Stmt,
     },
     datapack::{Mcfunction, Namespace},
 };
 
 #[derive(Clone)]
-pub struct Symbol {
+struct Symbol {
     decorated_name: String,
 }
 
-pub struct SymbolTable(Vec<HashMap<String, Symbol>>);
+struct SymbolTable(Vec<HashMap<String, Symbol>>);
 
 impl SymbolTable {
     pub fn new() -> Self {
@@ -76,6 +76,13 @@ impl SymbolTable {
         }
         panic!();
     }
+}
+
+struct Path(String, String);
+
+enum ExpVal {
+    Int { reg: String },
+    Array { element_type: DataType, path: Path },
 }
 
 pub struct Generator {

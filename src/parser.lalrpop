@@ -1,5 +1,5 @@
 use mcscript::ast::{
-    Program, FuncDef, Block, BlockItem, Stmt, Decl, FuncParam, 
+    Program, FuncDef, Block, BlockItem, Stmt, Decl, FuncParam, DataType,
     exp::{ Exp, UnaryOp, BinaryOp },
 };
 
@@ -17,15 +17,22 @@ match {
 pub Program: Program =<func_defs: (<FuncDef>)*> => Program { <> };
 
 FuncDef: FuncDef = {
-    "fn" <ident: Ident> "(" <param: FuncParam?> <mut params: ("," <FuncParam>)*> ")" <block: Block> => {
+    "fn" <ident: Ident> "(" <param: FuncParam?> <mut params: ("," <FuncParam>)*> ")" <func_type: FuncType?> <block: Block> => {
         if param.is_some() {
             params.insert(0, param.unwrap());
         }
-        FuncDef { ident, params, block }
+        FuncDef { ident, params, block, func_type }
     }
 }
 
-FuncParam: FuncParam = <ident: Ident> => FuncParam { <> };
+FuncParam: FuncParam = <ident: Ident> ":" <data_type: DataType> => FuncParam { <> };
+
+FuncType: DataType = "->" <DataType> => <>;
+
+DataType: DataType = {
+    "int" => DataType::Int,
+    "Array" "<" <element_type: DataType> ">" => DataType::Array { element_type: Box::new(<>) },
+}
 
 Ident: String = r"[_a-zA-Z][_a-zA-Z0-9]*" => <>.to_string();
 

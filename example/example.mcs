@@ -1,12 +1,11 @@
-
-fn sum4(a, b, c, d) {
-    {
-     //   let a = 0;
-        a += 1;
-    }
-    return a + 2 * b + 3 * c + 4 * d;
+fn f(a: int, arr: Array<Array<int>>) -> Array<Array<int>> {
+    return arr;
 }
 
-fn main() {
-    return sum::sum(100);
+fn main() -> int {
+    return;
+}
+
+fn add_1(x: int) -> int {
+    return 1;
 }
