@@ -1,6 +1,6 @@
 use super::{Datapack, Mcfunction, Namespace};
 
-pub fn mcscript_datapack() -> Datapack {
+pub fn mcscript_datapack(path: String) -> Datapack {
     let mut init = Mcfunction::new("init".into());
     init.append_commands(vec![
         "scoreboard objectives add registers dummy",
@@ -29,7 +29,7 @@ pub fn mcscript_datapack() -> Datapack {
     namespace.append_mcfunction(mov_m_m);
     namespace.append_mcfunction(mov_m_r);
     namespace.append_mcfunction(load_element_path_src);
-    let mut datapack = Datapack::new("mcscript".into());
+    let mut datapack = Datapack::new(path);
     datapack.append_namespace(namespace);
     datapack
 }

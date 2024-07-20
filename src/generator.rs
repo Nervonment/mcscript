@@ -263,7 +263,7 @@ impl Generator {
                                             panic!();
                                         }
                                         self.working_mcfunction.as_mut().unwrap().append_commands(vec![
-                                            "data modify storage memory:temp target_path set value \"memory:temp return_array\"",
+                                            "data modify storage memory:temp target_path set value \"memory:temp return_object\"",
                                             &format!("$data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
                                             "function mcscript:mov_m_m with storage memory:temp",
                                             "return 0",
@@ -787,7 +787,7 @@ impl Generator {
                                 .as_mut()
                                 .unwrap()
                                 .append_commands(vec![
-                                    &format!("$data modify storage {} {} set from storage memory:temp return_array", arr_path.0, arr_path.1),
+                                    &format!("$data modify storage {} {} set from storage memory:temp return_object", arr_path.0, arr_path.1),
                                     &format!("$data modify storage {} {} set value \"{} {}\"", path_path.0, path_path.1, arr_path.0, arr_path.1),
                                 ]);
                             ExpVal::Array {

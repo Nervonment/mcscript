@@ -1,0 +1,45 @@
+fn test1() -> int {
+    let a = 1;
+    a *= a + a * a % 3;
+    a += a * (a + a);
+    a /= 2;
+    a %= 100;
+    {
+        let a = 2;
+        a = 114514;
+    }
+    {
+        a -= 4;
+    }
+    return a;
+}
+
+fn test2() -> Array<int> {
+    let n = 10;
+    let arr = new Array(n, 0);
+    let i = 0;
+    while i < n {
+        let j = i + 1;
+        while j > 0 {
+            arr[i] += j;
+            j -= 1;
+        }
+        i += 1;
+    }
+    return arr;
+}
+
+fn test3() -> Array<int> {
+    let n = 10;
+    let arr = new Array(n, 0);
+    let i = 0;
+    while i < n {
+        arr[i] = test_utils::fib_recursive(i + 1);
+        i += 1;
+    }
+    return arr;
+}
+
+fn test4() -> int {
+    return test_utils::fib(40);
+}
