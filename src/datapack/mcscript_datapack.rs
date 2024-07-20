@@ -17,10 +17,18 @@ pub fn mcscript_datapack() -> Datapack {
     ]);
     let mut mov_m_m = Mcfunction::new("mov_m_m".into());
     mov_m_m.append_command("$data modify storage $(target_path) set from storage $(src_path)");
+    let mut mov_m_r = Mcfunction::new("mov_m_r".into());
+    mov_m_r.append_command("$execute store result storage $(target_path) int 1.0 run scoreboard players get $(src_reg) registers");
+    let mut load_element_path_src = Mcfunction::new("load_element_path_src".into());
+    load_element_path_src.append_command(
+        "$data modify storage memory:temp src_path set value \"$(array_path)[$(subscript)]\"",
+    );
     let mut namespace = Namespace::new("mcscript".into());
     namespace.append_mcfunction(init);
     namespace.append_mcfunction(pop_frame);
     namespace.append_mcfunction(mov_m_m);
+    namespace.append_mcfunction(mov_m_r);
+    namespace.append_mcfunction(load_element_path_src);
     let mut datapack = Datapack::new("mcscript".into());
     datapack.append_namespace(namespace);
     datapack
