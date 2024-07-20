@@ -64,4 +64,8 @@ pub enum Stmt {
     Break,
     Continue,
     Exp(Box<Exp>),
+    InlineCommand {
+        fmt_str: String,
+        arguments: Vec<Box<Exp>>,
+    },
 }

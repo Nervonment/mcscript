@@ -108,6 +108,7 @@ pub struct Generator {
     working_function_ident: String,
     working_mcfunction: Option<Mcfunction>,
     label_acc: u32,
+    custom_cmd_acc: u32,
     break_labels: Vec<String>,
     continue_labels: Vec<String>,
 }
@@ -122,6 +123,7 @@ impl Generator {
             working_function_ident: "".into(),
             working_mcfunction: None,
             label_acc: 0,
+            custom_cmd_acc: 0,
             break_labels: vec![],
             continue_labels: vec![],
         }
@@ -149,6 +151,7 @@ impl Generator {
     fn generate_from_namespace(&mut self, mut compile_unit: CompileUnit, namespace: String) {
         self.working_namespace = Some(Namespace::new(namespace));
 
+        self.custom_cmd_acc = 0;
         for func_def in &mut compile_unit.func_defs {
             self.generate_from_func_def(func_def);
         }
@@ -287,7 +290,12 @@ impl Generator {
                         let mut reg_acc = 0;
                         let mut path_acc = 0;
                         let mut arr_acc = 0;
-                        let exp_val = self.generate_from_exp(new_value, &mut reg_acc, &mut path_acc, &mut arr_acc);
+                        let exp_val = self.generate_from_exp(
+                            new_value,
+                            &mut reg_acc,
+                            &mut path_acc,
+                            &mut arr_acc,
+                        );
                         match lhs.as_mut() {
                             Exp::Variable(ident) => {
                                 let (is_local, variable) =
@@ -338,7 +346,11 @@ impl Generator {
                             }
                             Exp::ArrayElement { array, subscript } => {
                                 let (path_path, data_type) = self.get_element_path_path(
-                                    array, subscript, &mut reg_acc, &mut path_acc, &mut arr_acc,
+                                    array,
+                                    subscript,
+                                    &mut reg_acc,
+                                    &mut path_acc,
+                                    &mut arr_acc,
                                 );
 
                                 match exp_val {
@@ -524,6 +536,51 @@ impl Generator {
                                 self.working_namespace.as_ref().unwrap().name(),
                                 self.continue_labels.last().unwrap(),
                             ));
+                    }
+                    Stmt::InlineCommand { fmt_str, arguments } => {
+                        for (i, arg) in arguments.iter_mut().enumerate() {
+                            let exp_val = self.generate_from_exp(arg, &mut 0, &mut 0, &mut 0);
+                            match exp_val {
+                                ExpVal::Int { reg } => {
+                                    self.working_mcfunction.as_mut().unwrap().append_commands(vec![
+                                        &format!("execute store result storage memory:temp custom_command_arguments.{} int 1.0 run scoreboard players get {} registers", i, reg),
+                                    ]);
+                                }
+                                ExpVal::Array {
+                                    element_type: _,
+                                    path_path,
+                                } => {
+                                    self.working_mcfunction.as_mut().unwrap().append_commands(vec![
+                                        &format!("data modfiy storage memory:temp target_path set value \"memory:temp custom_command_arguments.{}\"", i),
+                                        &format!("data modfiy storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
+                                        "function mcscript:mov_m_m with storage memory:temp",
+                                    ]);
+                                }
+                            }
+                        }
+                        let mut custom_cmd =
+                            Mcfunction::new(format!("custom_cmd_{}", self.custom_cmd_acc));
+                        self.custom_cmd_acc += 1;
+                        let mut cmd = fmt_str.to_owned();
+                        let mut i = 0;
+                        while cmd.find("{}").is_some() {
+                            cmd = cmd.replacen("{}", &format!("$({})", i), 1);
+                            i += 1;
+                        }
+                        custom_cmd.append_command(&format!("${}", cmd));
+                        let custom_cmd_name = custom_cmd.name().to_owned();
+                        self.working_namespace
+                            .as_mut()
+                            .unwrap()
+                            .append_mcfunction(custom_cmd);
+                        self.working_mcfunction
+                            .as_mut()
+                            .unwrap()
+                            .append_commands(vec![&format!(
+                                "function {}:{} with storage memory:temp custom_command_arguments",
+                                self.working_namespace.as_ref().unwrap().name(),
+                                custom_cmd_name
+                            )]);
                     }
                 },
             }

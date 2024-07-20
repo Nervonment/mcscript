@@ -23,12 +23,15 @@ pub fn mcscript_datapack(path: String) -> Datapack {
     load_element_path_src.append_command(
         "$data modify storage memory:temp src_path set value \"$(array_path)[$(subscript)]\"",
     );
+    // let mut run_command = Mcfunction::new("run_command".into());
+    // run_command.append_command("$$(command)");
     let mut namespace = Namespace::new("mcscript".into());
     namespace.append_mcfunction(init);
     namespace.append_mcfunction(pop_frame);
     namespace.append_mcfunction(mov_m_m);
     namespace.append_mcfunction(mov_m_r);
     namespace.append_mcfunction(load_element_path_src);
+    // namespace.append_mcfunction(run_command);
     let mut datapack = Datapack::new(path);
     datapack.append_namespace(namespace);
     datapack

@@ -43,3 +43,15 @@ fn test3() -> Array<int> {
 fn test4() -> int {
     return test_utils::fib(40);
 }
+
+fn test5() {
+    let y = 0;
+    while y < 10 {
+        run_command!("setblock ~ ~{} ~ glass", y);
+        y += 1;
+    }
+}
+
+fn test6() {
+    run_command!("data modify block 12147 120 -206 front_text.messages[0] set value '\"{}\"'", test_utils::fib(30));
+}
