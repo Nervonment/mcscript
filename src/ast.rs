@@ -3,20 +3,28 @@ use exp::Exp;
 pub mod exp;
 
 #[derive(Debug)]
-pub struct Program {
+pub struct CompileUnit {
     pub func_defs: Vec<FuncDef>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FuncDef {
     pub ident: String,
     pub params: Vec<FuncParam>,
     pub block: Block,
+    pub func_type: Option<DataType>,
 }
 
 #[derive(Debug, Clone)]
 pub struct FuncParam {
     pub ident: String,
+    pub data_type: DataType,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DataType {
+    Int,
+    Array { element_type: Box<DataType> },
 }
 
 #[derive(Debug, Clone)]
@@ -37,10 +45,10 @@ pub struct Decl {
 #[derive(Debug, Clone)]
 pub enum Stmt {
     Return {
-        return_value: Box<Exp>,
+        return_value: Option<Box<Exp>>,
     },
     Assign {
-        ident: String,
+        lhs: Box<Exp>,
         new_value: Box<Exp>,
     },
     Block(Block),

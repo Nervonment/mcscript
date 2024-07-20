@@ -1,5 +1,5 @@
 use mcscript::ast::{
-    Program, FuncDef, Block, BlockItem, Stmt, Decl, FuncParam, 
+    CompileUnit, FuncDef, Block, BlockItem, Stmt, Decl, FuncParam, DataType,
     exp::{ Exp, UnaryOp, BinaryOp },
 };
 
@@ -14,18 +14,25 @@ match {
     _
 }
 
-pub Program: Program =<func_defs: (<FuncDef>)*> => Program { <> };
+pub CompileUnit: CompileUnit =<func_defs: (<FuncDef>)*> => CompileUnit { <> };
 
 FuncDef: FuncDef = {
-    "fn" <ident: Ident> "(" <param: FuncParam?> <mut params: ("," <FuncParam>)*> ")" <block: Block> => {
+    "fn" <ident: Ident> "(" <param: FuncParam?> <mut params: ("," <FuncParam>)*> ")" <func_type: FuncType?> <block: Block> => {
         if param.is_some() {
-            params.push(param.unwrap());
+            params.insert(0, param.unwrap());
         }
-        FuncDef { ident, params, block }
+        FuncDef { ident, params, block, func_type }
     }
 }
 
-FuncParam: FuncParam = <ident: Ident> => FuncParam { <> };
+FuncParam: FuncParam = <ident: Ident> ":" <data_type: DataType> => FuncParam { <> };
+
+FuncType: DataType = "->" <DataType> => <>;
+
+DataType: DataType = {
+    "int" => DataType::Int,
+    "Array" "<" <element_type: DataType> ">" => DataType::Array { element_type: Box::new(<>) },
+}
 
 Ident: String = r"[_a-zA-Z][_a-zA-Z0-9]*" => <>.to_string();
 
@@ -53,19 +60,19 @@ Stmt: Stmt = {
 }
 
 ReturnStmt: Stmt = {
-    "return" <return_value: Exp> ";" => Stmt::Return { <> }
+    "return" <return_value: Exp?> ";" => Stmt::Return { <> }
 }
 
 AssignStmt: Stmt = {
-    <ident: Ident> "=" <new_value: Exp> ";" => Stmt::Assign { <> }
+    <lhs: Exp> "=" <new_value: Exp> ";" => Stmt::Assign { <> }
 }
 
 OpAssignStmt: Stmt = {
-    <ident: Ident> "+=" <value: Exp> ";" => Stmt::Assign { ident: ident.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Add, Box::new(Exp::Variable(ident)), value)) },
-    <ident: Ident> "-=" <value: Exp> ";" => Stmt::Assign { ident: ident.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Sub, Box::new(Exp::Variable(ident)), value)) },
-    <ident: Ident> "*=" <value: Exp> ";" => Stmt::Assign { ident: ident.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Mul, Box::new(Exp::Variable(ident)), value)) },
-    <ident: Ident> "/=" <value: Exp> ";" => Stmt::Assign { ident: ident.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Div, Box::new(Exp::Variable(ident)), value)) },
-    <ident: Ident> "%=" <value: Exp> ";" => Stmt::Assign { ident: ident.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Mod, Box::new(Exp::Variable(ident)), value)) },
+    <lhs: Exp> "+=" <value: Exp> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Add, lhs, value)) },
+    <lhs: Exp> "-=" <value: Exp> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Sub, lhs, value)) },
+    <lhs: Exp> "*=" <value: Exp> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Mul, lhs, value)) },
+    <lhs: Exp> "/=" <value: Exp> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Div, lhs, value)) },
+    <lhs: Exp> "%=" <value: Exp> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Mod, lhs, value)) },
 }
 
 IfElseStmt: Stmt = {
@@ -91,16 +98,30 @@ Exp: Box<Exp> = EqExp;
 PrimaryExp: Box<Exp> = {
     Number => Box::new(Exp::Number(<>)),
     Ident => Box::new(Exp::Variable(<>)),
-    <func_ident: Ident> "(" <arg: Exp?> <mut args: ("," <Exp>)*> ")" => {
+    <namespace: NamespacePrefix?> <func_ident: Ident> "(" <arg: Exp?> <mut args: ("," <Exp>)*> ")" => {
         if arg.is_some() {
-            args.push(arg.unwrap());
+            args.insert(0, arg.unwrap());
         }
-        Box::new(Exp::FuncCall { func_ident, arguments: args })
+        Box::new(Exp::FuncCall { namespace, func_ident, arguments: args })
     },
+    NewArray,
+    ArrayElement,
     "(" <Exp> ")",
 }
 
-FuncArg: Box<Exp> = Exp;
+NamespacePrefix: String = <Ident> "::";
+
+NewArray: Box<Exp> = {
+    "new" "Array" "(" <length: Exp> "," <element: Exp> ")" => Box::new(Exp::NewArray{ <> }),
+}
+
+ArrayElement: Box<Exp> = {
+    <array: PrimaryExp>  <subscript: Subscript> => Box::new(Exp::ArrayElement{ array, subscript })
+}
+
+Subscript: Box<Exp> = {
+    "[" <Exp> "]" => <>,
+}
 
 UnaryExp: Box<Exp> = {
     <op: UnaryOp> <exp: UnaryExp> => {
