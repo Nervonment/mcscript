@@ -4,10 +4,16 @@ pub mod exp;
 
 #[derive(Debug)]
 pub struct CompileUnit {
-    pub func_defs: Vec<FuncDef>,
+    pub global_defs: Vec<GlobalDef>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
+pub enum GlobalDef {
+    FuncDef(FuncDef),
+    VariableDef { ident: String, init_value: Box<Exp> },
+}
+
+#[derive(Debug)]
 pub struct FuncDef {
     pub ident: String,
     pub params: Vec<FuncParam>,

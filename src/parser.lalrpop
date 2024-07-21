@@ -1,6 +1,6 @@
 use mcscript::{
     ast::{
-        CompileUnit, FuncDef, Block, BlockItem, Stmt, Decl, FuncParam, DataType,
+        CompileUnit, GlobalDef, FuncDef, Block, BlockItem, Stmt, Decl, FuncParam, DataType,
         exp::{ Exp, UnaryOp, BinaryOp },
     },
     lexer::apply_string_escapes,
@@ -17,16 +17,23 @@ match {
     _
 }
 
-pub CompileUnit: CompileUnit =<func_defs: (<FuncDef>)*> => CompileUnit { <> };
+pub CompileUnit: CompileUnit =<func_defs: (<GlobalDef>)*> => CompileUnit { <> };
 
-FuncDef: FuncDef = {
+GlobalDef: GlobalDef = {
+    FuncDef,
+    VariableDef,
+}
+
+FuncDef: GlobalDef = {
     "fn" <ident: Ident> "(" <param: FuncParam?> <mut params: ("," <FuncParam>)*> ")" <func_type: FuncType?> <block: Block> => {
         if param.is_some() {
             params.insert(0, param.unwrap());
         }
-        FuncDef { ident, params, block, func_type }
+        GlobalDef::FuncDef(FuncDef { ident, params, block, func_type })
     }
 }
+
+VariableDef: GlobalDef = "let" <ident: Ident> "=" <init_value: Exp> ";" => GlobalDef::VariableDef { <> };
 
 FuncParam: FuncParam = <ident: Ident> ":" <data_type: DataType> => FuncParam { <> };
 
@@ -109,7 +116,7 @@ Exp: Box<Exp> = EqExp;
 
 PrimaryExp: Box<Exp> = {
     Number => Box::new(Exp::Number(<>)),
-    Ident => Box::new(Exp::Variable(<>)),
+    Variable,
     <namespace: NamespacePrefix?> <func_ident: Ident> "(" <arg: Exp?> <mut args: ("," <Exp>)*> ")" => {
         if arg.is_some() {
             args.insert(0, arg.unwrap());
@@ -119,6 +126,10 @@ PrimaryExp: Box<Exp> = {
     NewArray,
     ArrayElement,
     "(" <Exp> ")",
+}
+
+Variable: Box<Exp> = {
+    <namespace: NamespacePrefix?> <ident: Ident> => Box::new(Exp::Variable { ident, namespace }),
 }
 
 NamespacePrefix: String = <Ident> "::";
