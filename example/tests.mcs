@@ -44,15 +44,230 @@ fn test4() -> int {
     return test_utils::fib(40);
 }
 
-fn test5() {
-    let y = 0;
-    while y < 10 {
-        run_command!("setblock ~ ~{} ~ glass", y);
-        y += 1;
+fn var_defn_1() -> int {
+    let a = 3;
+    let b = 5;
+    return a + b;
+}
+
+fn var_defn_2() -> int {
+    let a = 3;
+    let b = 5;
+    {
+        let a = 5;
+        return a + b;
     }
 }
 
-fn test6() {
-    let a = new Array(3, 1);
-    run_command!("data modify block 12147 120 -206 front_text.messages[0] set value '\"{}\"'", a);
+fn var_defn_3() -> int {
+    let a = 0;
+    let b0 = 0;
+    let _c = 0;
+    a = 1;
+    b0 = 2;
+    _c = 3;
+    return a + b0 + _c;
+}
+
+fn arr_defn_1() -> Array<int> {
+    let a = new Array(10, 0);
+    return a;
+}
+
+fn arr_defn_2() -> Array<Array<int>> {
+    let a = new Array(2, new Array(3, 0));
+    return a;
+}
+
+fn func_defn_1() -> int {
+    let a = 10;
+    let b = test_utils::f1(a);
+    return b;
+}
+
+fn arr_arg_1() -> Array<Array<int>> {
+    let arr = new Array(2, 1);
+    let arr2 = new Array(2, arr);
+    arr2[1] = test_utils::f2(arr);
+    return arr2;
+}
+
+fn if_1() -> int {
+    let a = 10;
+    if a > 0 {
+        return 1;
+    }
+    return 0;
+}
+
+fn if_2() -> int {
+    let a = 10;
+    if a > 0 {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+fn if_3() -> int {
+    let a = 5;
+    if a == 5 {
+        a = 25;
+    } else {
+        a *= 2;
+    }
+    return a;
+}
+
+//fn if_4() -> int {
+//    let a = 5;
+//    let b = 10;
+//    if a == 6 || b == 0xb {
+//        return a;
+//    } else {
+//        if b == 10 && a == 1 {
+//            a = 25;
+//        } else if b == 10 && a == -5 {
+//            a += 15;
+//        } else {
+//            a = -+a;
+//        }
+//    }
+//    return a;
+//}
+
+fn if_5() -> int {
+    let a = 5;
+    let b = 10;
+    if a == 5 {
+        if b == 012 {
+            a = 25;
+        } else {
+            a += 15;
+        }
+    }
+    return a;
+}
+
+fn if_6() -> int {
+    let a = 5;
+    let b = 10;
+    if a == 5 {
+        if b == 10 {
+            a = 25;
+        }
+    } else {
+        a += 15;
+    }
+    return a;
+}
+
+fn while_if_1() -> int {
+    return test_utils::f3(2, 2);
+}
+
+fn while_1() -> int {
+    let i = 5;
+    let j = 7;
+    while i < 100 {
+        i += 30;
+        while j < 100 {
+            j += 6;
+        }
+        j -= 100;
+    }
+    return j;
+}
+
+fn while_2() -> int {
+    let a = 5;
+    let b = 6;
+    let c = 7;
+    let d = 10;
+    while a < 20 {
+        a += 3;
+        while b < 10 {
+            b += 1;
+            while c == 7 {
+                c -= 1;
+                while d < 20 {
+                    d += 3;
+                }
+                d -= 1;
+            }
+            c += 1;
+        }
+        b -= 2;
+    }
+    return a + (b + d) + c;
+}
+
+fn while_3() -> int {
+  let a = 5;
+  let b = 6;
+  let c = 7;
+  let d = 10;
+  let g = 1;
+  let h = 2;
+  let e = 4;
+  let f = 6;
+  while a < 20 {
+    a = a + 3;
+    while b < 10 {
+      b = b + 1;
+      while c == 7 {
+        c = c - 1;
+        while d < 20 {
+          d = d + 3;
+          while e > 1 {
+            e = e - 1;
+            while f > 2 {
+              f = f - 2;
+              while g < 3 {
+                g = g + 10;
+                while h < 10 {
+                  h = h + 8;
+                }
+                h = h - 1;
+              }
+              g = g - 8;
+            }
+            f = f + 1;
+          }
+          e = e + 1;
+        }
+        d = d - 1;
+      }
+      c = c + 1;
+    }
+    b = b - 2;
+  }
+  return (a + (b + d) + c) - (e + d - g + h);
+}
+
+fn break_1() -> int {
+    let i = 0;
+    let sum = 0;
+    while i < 100 {
+        if i == 50 {
+            break;
+        }
+        sum += i;
+        i += 1;
+    }
+    return sum;
+}
+
+fn continue_1() -> int {
+    let i = 0;
+    let sum = 0;
+    while i < 100 {
+        if i == 50 {
+            i += 1;
+            continue;
+        }
+        sum += i;
+        i += 1;
+    }
+    return sum;
 }
