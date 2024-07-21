@@ -182,30 +182,75 @@ impl Generator {
     fn scan_func_defs(&mut self, compile_unit: &CompileUnit, namespace: &str) {
         for global_def in &compile_unit.global_defs {
             match global_def {
-                GlobalDef::FuncDef(FuncDef {
-                    ident,
-                    params,
-                    block,
-                    func_type,
-                }) => {
+                GlobalDef::FuncDef(func_def) => {
                     self.function_table.new_function(
                         (namespace.to_owned(), func_def.ident.clone()),
                         func_def.clone(),
                     );
                 }
-                GlobalDef::VariableDef { ident, init_value } => {
-                    
-                }
+                _ => {}
             }
         }
     }
 
     fn generate_from_namespace(&mut self, mut compile_unit: CompileUnit, namespace: String) {
-        self.working_namespace = Some(Namespace::new(namespace));
+        self.working_namespace = Some(Namespace::new(namespace.clone()));
 
+        // handle global variable definitions
+        self.working_mcfunction = Some(Mcfunction::new("init".into()));
+        self.working_mcfunction.as_mut().unwrap().append_prologue();
+        for global_def in &mut compile_unit.global_defs {
+            match global_def {
+                GlobalDef::VariableDef { ident, init_value } => {
+                    let exp_val = self.generate_from_exp(init_value, &mut 0, &mut 0, &mut 0);
+                    match exp_val {
+                        ExpVal::Int { reg } => {
+                            let decorated_name = self
+                                .variable_table
+                                .new_global_variable(&ident, &namespace, DataType::Int)
+                                .decorated_name;
+                            self.working_mcfunction.as_mut().unwrap().append_commands(vec![
+                                &format!("$execute store result storage memory:global {} int 1.0 run scoreboard players get {} registers", decorated_name, reg)
+                            ]);
+                        }
+                        ExpVal::Array {
+                            element_type,
+                            path_path,
+                        } => {
+                            let decorated_name = self
+                                .variable_table
+                                .new_global_variable(
+                                    ident,
+                                    &namespace,
+                                    DataType::Array {
+                                        element_type: Box::new(element_type),
+                                    },
+                                )
+                                .decorated_name;
+                            self.working_mcfunction.as_mut().unwrap().append_commands(vec![
+                                &format!("$data modify storage memory:temp target_path set value \"memory:global {}\"", decorated_name),
+                                &format!("$data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
+                                &format!("function mcscript:mov_m_m with storage memory:temp"),
+                            ]);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        self.working_mcfunction.as_mut().unwrap().append_epilogue();
+        self.working_namespace
+            .as_mut()
+            .unwrap()
+            .append_mcfunction(self.working_mcfunction.take().unwrap());
+
+        // generate functions
         self.custom_cmd_acc = 0;
-        for func_def in &mut compile_unit.global_defs {
-            self.generate_from_func_def(func_def);
+        for global_def in &mut compile_unit.global_defs {
+            match global_def {
+                GlobalDef::FuncDef(func_def) => self.generate_from_func_def(func_def),
+                _ => {}
+            }
         }
 
         self.datapack
@@ -216,15 +261,13 @@ impl Generator {
         self.working_function_ident = func_def.ident.clone();
 
         let mut entry = Mcfunction::new(self.working_function_ident.clone());
-        entry.append_commands(vec![
-            "scoreboard players add base_index registers 1",
-            "execute store result storage memory:temp base_index int 1.0 run scoreboard players get base_index registers",
-            "data modify storage memory:stack frame append from storage memory:temp arguments",
-            "",
-            &format!("function {}:{}-label_0 with storage memory:temp", self.working_namespace.as_ref().unwrap().name(), self.working_function_ident.clone()),
-            "",
-            "function mcscript:pop_frame with storage memory:temp",
-        ]);
+        entry.append_prologue();
+        entry.append_command(&format!(
+            "function {}:{}-label_0 with storage memory:temp",
+            self.working_namespace.as_ref().unwrap().name(),
+            self.working_function_ident.clone()
+        ));
+        entry.append_epilogue();
         self.working_namespace
             .as_mut()
             .unwrap()

@@ -17,7 +17,7 @@ match {
     _
 }
 
-pub CompileUnit: CompileUnit =<func_defs: (<GlobalDef>)*> => CompileUnit { <> };
+pub CompileUnit: CompileUnit =<global_defs: (<GlobalDef>)*> => CompileUnit { <> };
 
 GlobalDef: GlobalDef = {
     FuncDef,

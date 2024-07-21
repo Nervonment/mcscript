@@ -101,6 +101,22 @@ impl Mcfunction {
         }
     }
 
+    pub fn append_prologue(&mut self) {
+        self.append_commands(vec![
+            "scoreboard players add base_index registers 1",
+            "execute store result storage memory:temp base_index int 1.0 run scoreboard players get base_index registers",
+            "data modify storage memory:stack frame append from storage memory:temp arguments",
+            "",
+        ]);
+    }
+
+    pub fn append_epilogue(&mut self) {
+        self.append_commands(vec![
+            "",
+            "function mcscript:pop_frame with storage memory:temp",
+        ]);
+    }
+
     pub fn append_command(&mut self, command: &str) {
         self.content.push_str(command);
         self.content.push_str("\n");

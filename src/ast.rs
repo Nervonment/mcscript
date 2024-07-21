@@ -13,7 +13,7 @@ pub enum GlobalDef {
     VariableDef { ident: String, init_value: Box<Exp> },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FuncDef {
     pub ident: String,
     pub params: Vec<FuncParam>,
