@@ -271,3 +271,21 @@ fn continue_1() -> int {
     }
     return sum;
 }
+
+fn glob_var_1() -> int {
+    test_utils::g_a += 1;
+    return test_utils::g_a;
+}
+
+fn glob_var_2() -> int {
+    return test_utils::g_b;
+}
+
+fn glob_var_3() -> int {
+    test_utils::g_arr_1[0] = 114;
+    return test_utils::g_c;
+}
+
+fn glob_var_4() -> int {
+    return test_utils::g_arr_1[0];
+}

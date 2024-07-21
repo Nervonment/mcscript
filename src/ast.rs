@@ -10,7 +10,7 @@ pub struct CompileUnit {
 #[derive(Debug)]
 pub enum GlobalDef {
     FuncDef(FuncDef),
-    VariableDef { ident: String, init_value: Box<Exp> },
+    VariableDef { ident: String, init_value: Box<Exp>, data_type: DataType },
 }
 
 #[derive(Debug, Clone)]

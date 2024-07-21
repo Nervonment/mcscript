@@ -33,7 +33,7 @@ FuncDef: GlobalDef = {
     }
 }
 
-VariableDef: GlobalDef = "let" <ident: Ident> "=" <init_value: Exp> ";" => GlobalDef::VariableDef { <> };
+VariableDef: GlobalDef = "let" <ident: Ident> ":" <data_type: DataType> "=" <init_value: Exp> ";" => GlobalDef::VariableDef { <> };
 
 FuncParam: FuncParam = <ident: Ident> ":" <data_type: DataType> => FuncParam { <> };
 

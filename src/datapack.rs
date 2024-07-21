@@ -118,13 +118,18 @@ impl Mcfunction {
     }
 
     pub fn append_command(&mut self, command: &str) {
-        self.content.push_str(command);
+        let mut command = command.to_owned();
+        if command.find("$").is_some() {
+            command.insert(0, '$');
+        }
+        self.content.push_str(&command);
         self.content.push_str("\n");
     }
 
     pub fn append_commands(&mut self, commands: Vec<&str>) {
-        self.content.push_str(&commands.join("\n"));
-        self.content.push_str("\n");
+        for command in commands {
+            self.append_command(command);
+        }
     }
 
     pub fn name(&self) -> &str {

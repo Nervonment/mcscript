@@ -19,11 +19,21 @@ fn test_one(mcfunction: &str, result_type: RT, expected_result: &str) -> Result<
         .execute(PrintStyledContent(format!("tests:{}", mcfunction).blue()))?;
     if cfg!(target_os = "windows") {
         Command::new("mcrcon.exe")
-            .args(["-p", "123", &format!("function tests:{}", mcfunction)])
+            .args([
+                "-p",
+                "123",
+                "function mcscript:init",
+                &format!("function tests:{}", mcfunction),
+            ])
             .output()
     } else {
         Command::new("mcrcon")
-            .args(["-p", "123", &format!("function tests:{}", mcfunction)])
+            .args([
+                "-p",
+                "123",
+                "function mcscript:init",
+                &format!("function tests:{}", mcfunction),
+            ])
             .output()
     }?;
 
@@ -85,11 +95,23 @@ fn tests() -> Result<()> {
 
     if cfg!(target_os = "windows") {
         Command::new("mcrcon.exe")
-            .args(["-p", "123", "reload", "function mcscript:init"])
+            .args([
+                "-p",
+                "123",
+                "reload",
+                "function mcscript:init",
+                "function test_utils:init",
+            ])
             .output()
     } else {
         Command::new("mcrcon")
-            .args(["-p", "123", "reload", "function mcscript:init"])
+            .args([
+                "-p",
+                "123",
+                "reload",
+                "function mcscript:init",
+                "function test_utils:init",
+            ])
             .output()
     }?;
 
@@ -117,6 +139,10 @@ fn tests() -> Result<()> {
         ("while_3", RT::Regsiter, "23"),
         ("break_1", RT::Regsiter, "1225"),
         ("continue_1", RT::Regsiter, "4900"),
+        ("glob_var_1", RT::Regsiter, "2"),
+        ("glob_var_2", RT::Regsiter, "89"),
+        ("glob_var_3", RT::Regsiter, "1"),
+        ("glob_var_4", RT::Regsiter, "114"),
     ];
     for test in tests {
         test_one(test.0, test.1, test.2)?;
