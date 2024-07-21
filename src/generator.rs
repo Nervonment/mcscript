@@ -551,8 +551,8 @@ impl Generator {
                                     path_path,
                                 } => {
                                     self.working_mcfunction.as_mut().unwrap().append_commands(vec![
-                                        &format!("data modfiy storage memory:temp target_path set value \"memory:temp custom_command_arguments.{}\"", i),
-                                        &format!("data modfiy storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
+                                        &format!("data modify storage memory:temp target_path set value \"memory:temp custom_command_arguments.{}\"", i),
+                                        &format!("$data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
                                         "function mcscript:mov_m_m with storage memory:temp",
                                     ]);
                                 }

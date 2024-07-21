@@ -53,5 +53,6 @@ fn test5() {
 }
 
 fn test6() {
-    run_command!("data modify block 12147 120 -206 front_text.messages[0] set value '\"{}\"'", test_utils::fib(30));
+    let a = new Array(3, 1);
+    run_command!("data modify block 12147 120 -206 front_text.messages[0] set value '\"{}\"'", a);
 }
