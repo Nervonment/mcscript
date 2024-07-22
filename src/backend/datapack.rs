@@ -119,11 +119,11 @@ impl Mcfunction {
 
     pub fn append_command(&mut self, command: &str) {
         let mut command = command.to_owned();
-        if command.find("$").is_some() {
+        if command.contains('$') {
             command.insert(0, '$');
         }
         self.content.push_str(&command);
-        self.content.push_str("\n");
+        self.content.push('\n');
     }
 
     pub fn append_commands(&mut self, commands: Vec<&str>) {

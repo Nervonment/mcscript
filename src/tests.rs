@@ -116,7 +116,7 @@ fn tests() -> Result<()> {
             .output()
     }?;
 
-    let mut pass = true; 
+    let mut pass = true;
 
     let tests = [
         ("test1", RT::Regsiter, "1"),

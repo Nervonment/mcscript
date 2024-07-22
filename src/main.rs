@@ -48,5 +48,5 @@ fn main() -> Result<()> {
             .write_to_file()?;
         }
     }
-    return Ok(());
+    Ok(())
 }

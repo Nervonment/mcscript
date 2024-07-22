@@ -169,7 +169,7 @@ impl Generator {
 
     pub fn generate(&mut self, compile_units: Vec<(CompileUnit, String)>) -> Datapack {
         for (compile_unit, namespace) in &compile_units {
-            self.scan_global_defs(&compile_unit, &namespace);
+            self.scan_global_defs(compile_unit, namespace);
         }
         for (compile_unit, namespace) in compile_units {
             self.generate_from_namespace(compile_unit, namespace);
@@ -192,7 +192,7 @@ impl Generator {
                     data_type,
                 } => {
                     self.variable_table
-                        .new_global_variable(&ident, &namespace, data_type.clone());
+                        .new_global_variable(ident, namespace, data_type.clone());
                 }
             }
         }
@@ -258,7 +258,7 @@ impl Generator {
                             self.working_mcfunction.as_mut().unwrap().append_commands(vec![
                                 &format!("data modify storage memory:temp target_path set value \"memory:global {}\"", decorated_name),
                                 &format!("data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
-                                &format!("function mcscript:mov_m_m with storage memory:temp"),
+                                "function mcscript:mov_m_m with storage memory:temp",
                             ]);
                         }
                     }
@@ -345,7 +345,7 @@ impl Generator {
                             self.working_mcfunction.as_mut().unwrap().append_commands(vec![
                                 &format!("data modify storage memory:temp target_path set value \"memory:stack frame[$(base_index)].{}\"", decorated_name),
                                 &format!("data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
-                                &format!("function mcscript:mov_m_m with storage memory:temp"),
+                                "function mcscript:mov_m_m with storage memory:temp",
                             ]);
                         }
                     }
@@ -421,7 +421,7 @@ impl Generator {
                         match lhs.as_mut() {
                             Exp::Variable { ident, namespace } => {
                                 let (is_local, variable) = self.variable_table.query_variable(
-                                    &ident,
+                                    ident,
                                     namespace,
                                     self.working_namespace.as_ref().unwrap().name(),
                                 );
@@ -689,11 +689,11 @@ impl Generator {
                         self.custom_cmd_acc += 1;
                         let mut cmd = fmt_str.to_owned();
                         let mut i = 0;
-                        while cmd.find("{}").is_some() {
+                        while cmd.contains("{}") {
                             cmd = cmd.replacen("{}", &format!("$({})", i), 1);
                             i += 1;
                         }
-                        custom_cmd.append_command(&format!("{}", cmd));
+                        custom_cmd.append_command(&cmd);
                         let custom_cmd_name = custom_cmd.name().to_owned();
                         self.working_namespace
                             .as_mut()
@@ -936,7 +936,7 @@ impl Generator {
                                 self.working_mcfunction.as_mut().unwrap().append_commands(vec![
                                     &format!("data modify storage memory:temp target_path set value \"memory:temp arguments.%{}\"", i),
                                     &format!("data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
-                                    &format!("function mcscript:mov_m_m with storage memory:temp")
+                                    "function mcscript:mov_m_m with storage memory:temp"
                                 ]);
                             }
                             _ => unreachable!(),
@@ -1247,7 +1247,7 @@ impl Generator {
                                         let reg_res = format!("r{}", reg_acc);
                                         *reg_acc += 1;
                                         self.working_mcfunction.as_mut().unwrap().append_commands(vec![
-                                            &format!("data modify storage memory:temp target_path set value \"memory:temp element\""),
+                                            "data modify storage memory:temp target_path set value \"memory:temp element\"",
                                             "function mcscript:mov_m_m with storage memory:temp",
                                             &format!("execute store result score {} registers run data get storage memory:temp element", reg_res)
                                         ]);
