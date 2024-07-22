@@ -125,6 +125,8 @@ fn tests() -> Result<()> {
         ("var_defn_3", RT::Regsiter, "6"),
         ("arr_defn_1", RT::Memory, "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
         ("arr_defn_2", RT::Memory, "[[0, 0, 0], [0, 0, 0]]"),
+        ("arr_subscript_1", RT::Regsiter, "123"),
+        ("arr_subscript_2", RT::Memory, "[[[3, 3], [0]], [[4], [0]]]"),
         ("func_defn_1", RT::Regsiter, "9"),
         ("arr_arg_1", RT::Memory, "[[1, 1], [2, 3]]"),
         ("if_1", RT::Regsiter, "1"),
@@ -143,6 +145,9 @@ fn tests() -> Result<()> {
         ("glob_var_2", RT::Regsiter, "89"),
         ("glob_var_3", RT::Regsiter, "1"),
         ("glob_var_4", RT::Regsiter, "114"),
+        ("glob_var_5", RT::Regsiter, "1919810"),
+        ("glob_var_6", RT::Memory, "[1, 2]"),
+        ("glob_var_7", RT::Memory, "[[1, 2], [0, 0]]"),
     ];
     for test in tests {
         test_one(test.0, test.1, test.2)?;

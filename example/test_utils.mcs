@@ -2,6 +2,8 @@ let g_a: int = 1;
 let g_b: int = fib(10) + fib(9);
 let g_arr_1: Array<int> = new Array(10, 1);
 let g_c: int = g_arr_1[0];
+let g_d: int = 1919810;
+let g_arr_2: Array<Array<int>> = new Array(2, new Array(2, 0));
 
 fn fib_recursive(n: int) -> int {
     if n < 3 {
@@ -46,4 +48,16 @@ fn f3(a: int, b: int) -> int {
         }
     }
     return c;
+}
+
+fn f4() -> int {
+    return g_d;
+}
+
+fn f5(arr: Array<int>) -> Array<int> {
+    return arr;
+}
+
+fn f6(arr: Array<Array<int>>) -> Array<Array<int>> {
+    return arr;
 }

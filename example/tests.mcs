@@ -79,6 +79,19 @@ fn arr_defn_2() -> Array<Array<int>> {
     return a;
 }
 
+fn arr_subscript_1() -> int {
+    let arr = new Array(2, new Array(3, 0));
+    arr[0][0] = 123;
+    return arr[0][0];
+}
+
+fn arr_subscript_2() -> Array<Array<Array<int>>> {
+    let arr = new Array(2, new Array(2, new Array(1, 0)));
+    arr[0][0] = new Array(2, 3);
+    arr[1][0][0] = 4;
+    return arr;
+}
+
 fn func_defn_1() -> int {
     let a = 10;
     let b = test_utils::f1(a);
@@ -288,4 +301,18 @@ fn glob_var_3() -> int {
 
 fn glob_var_4() -> int {
     return test_utils::g_arr_1[0];
+}
+
+fn glob_var_5() -> int {
+    return test_utils::f4();
+}
+
+fn glob_var_6() -> Array<int> {
+    test_utils::g_arr_2[0][0] = 1;
+    test_utils::g_arr_2[0][1] = 2;
+    return test_utils::f5(test_utils::g_arr_2[0]);
+}
+
+fn glob_var_7() -> Array<Array<int>> {
+    return test_utils::f6(test_utils::g_arr_2);
 }

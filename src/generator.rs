@@ -207,10 +207,13 @@ impl Generator {
         self.working_mcfunction = Some(Mcfunction::new("init".into()));
         self.working_function_ident = "init".into();
         self.working_mcfunction.as_mut().unwrap().append_prologue();
-        self.working_mcfunction.as_mut().unwrap().append_command(&format!(
-            "function {}:init-label_0 with storage memory:temp",
-            namespace,
-        ));
+        self.working_mcfunction
+            .as_mut()
+            .unwrap()
+            .append_command(&format!(
+                "function {}:init-label_0 with storage memory:temp",
+                namespace,
+            ));
         self.working_mcfunction.as_mut().unwrap().append_epilogue();
         self.working_namespace
             .as_mut()
@@ -1166,43 +1169,64 @@ impl Generator {
     ) -> (Path, DataType) {
         let subscript_val = self.generate_from_exp(subscript, reg_acc, path_acc, arr_acc);
         match subscript_val {
-            ExpVal::Int { reg } => match array {
-                Exp::Variable { ident, namespace } => {
-                    let (is_local, variable) = self.variable_table.query_variable(
-                        ident,
-                        namespace,
-                        self.working_namespace.as_ref().unwrap().name(),
-                    );
-                    let element_type = match variable.data_type {
-                        DataType::Array { element_type } => element_type,
-                        _ => unreachable!(),
-                    };
-                    let path_path = Path(
-                        "memory:stack".into(),
-                        format!("frame[$(base_index)].%path{}", path_acc),
-                    );
-                    let arr_path = if is_local {
-                        Path(
-                            "memory:stack".into(),
-                            format!("frame[$(base_index)].{}", variable.decorated_name),
-                        )
-                    } else {
-                        Path("memory:global".into(), variable.decorated_name)
-                    };
-                    *path_acc += 1;
-                    self.working_mcfunction.as_mut().unwrap().append_commands(vec![
-                            &format!("data modify storage memory:temp array_path set value \"{} {}\"", arr_path.0, arr_path.1),
-                            &format!("execute store result storage memory:temp subscript int 1.0 run scoreboard players get {} registers", reg),
-                            "function mcscript:load_element_path_src with storage memory:temp",
-                            &format!("data modify storage {} {} set from storage memory:temp src_path", path_path.0, path_path.1),
-                        ]);
-                    (path_path, *element_type)
+            ExpVal::Int { reg } => {
+                let element_type;
+                match array {
+                    Exp::Variable { ident, namespace } => {
+                        let (is_local, variable) = self.variable_table.query_variable(
+                            ident,
+                            namespace,
+                            self.working_namespace.as_ref().unwrap().name(),
+                        );
+                        element_type = match variable.data_type {
+                            DataType::Array { element_type } => element_type,
+                            _ => unreachable!(),
+                        };
+                        let arr_path = if is_local {
+                            Path(
+                                "memory:stack".into(),
+                                format!("frame[$(base_index)].{}", variable.decorated_name),
+                            )
+                        } else {
+                            Path("memory:global".into(), variable.decorated_name)
+                        };
+                        self.working_mcfunction
+                            .as_mut()
+                            .unwrap()
+                            .append_commands(vec![&format!(
+                                "data modify storage memory:temp array_path set value \"{} {}\"",
+                                arr_path.0, arr_path.1
+                            )]);
+                    }
+                    Exp::ArrayElement { array, subscript } => {
+                        let (arr_path_path, array_type) = self
+                            .get_element_path_path(array, subscript, reg_acc, path_acc, arr_acc);
+                        element_type = match array_type {
+                            DataType::Array { element_type } => element_type,
+                            _ => unreachable!(),
+                        };
+                        self.working_mcfunction
+                            .as_mut()
+                            .unwrap()
+                            .append_commands(vec![&format!(
+                                "data modify storage memory:temp array_path set from storage {} {}",
+                                arr_path_path.0, arr_path_path.1
+                            )]);
+                    }
+                    _ => unreachable!(),
                 }
-                Exp::ArrayElement { array, subscript } => {
-                    self.get_element_path_path(array, subscript, reg_acc, path_acc, arr_acc)
-                }
-                _ => unreachable!(),
-            },
+                let path_path = Path(
+                    "memory:stack".into(),
+                    format!("frame[$(base_index)].%path{}", path_acc),
+                );
+                *path_acc += 1;
+                self.working_mcfunction.as_mut().unwrap().append_commands(vec![
+                    &format!("execute store result storage memory:temp subscript int 1.0 run scoreboard players get {} registers", reg),
+                    "function mcscript:load_element_path_src with storage memory:temp",
+                    &format!("data modify storage {} {} set from storage memory:temp src_path", path_path.0, path_path.1),
+                ]);
+                (path_path, *element_type)
+            }
             _ => unreachable!(),
         }
     }
