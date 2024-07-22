@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
     ast::{
         exp::{BinaryOp, Exp, UnaryOp},
-        Block, BlockItem, CompileUnit, DataType, FuncDef, FuncParam, Stmt,
+        Block, BlockItem, CompileUnit, DataType, FuncDef, FuncParam, GlobalDef, Stmt,
     },
     datapack::{Datapack, Mcfunction, Namespace},
 };
@@ -14,11 +14,14 @@ struct Variable {
     data_type: DataType,
 }
 
-struct VariableTable(Vec<HashMap<String, Variable>>);
+struct VariableTable(
+    Vec<HashMap<String, Variable>>,
+    HashMap<(String, String), Variable>,
+);
 
 impl VariableTable {
     pub fn new() -> Self {
-        Self(vec![HashMap::<String, Variable>::new()])
+        Self(vec![HashMap::new()], HashMap::new())
     }
 
     pub fn enter_scope(&mut self) {
@@ -29,12 +32,13 @@ impl VariableTable {
         self.0.pop();
     }
 
-    pub fn new_variable(&mut self, ident: &str, data_type: DataType) -> Variable {
+    pub fn new_local_variable(&mut self, ident: &str, data_type: DataType) -> Variable {
         if self.0.last().unwrap().contains_key(ident) {
             panic!();
         }
-        let mut decorated_name = ident.to_owned();
-        decorated_name.push_str(&format!("@{}", self.0.len() - 1));
+        let decorated_name = format!("{}@{}", ident, self.0.len() - 1);
+        // let mut decorated_name = ident.to_owned();
+        // decorated_name.push_str(&format!("@{}", self.0.len() - 1));
         let variable = Variable {
             decorated_name: decorated_name.clone(),
             data_type,
@@ -43,6 +47,25 @@ impl VariableTable {
             .last_mut()
             .unwrap()
             .insert(ident.to_owned(), variable.clone());
+        variable
+    }
+
+    pub fn new_global_variable(
+        &mut self,
+        ident: &str,
+        namespace: &str,
+        data_type: DataType,
+    ) -> Variable {
+        let key = (ident.to_owned(), namespace.to_owned());
+        if self.1.contains_key(&key) {
+            panic!();
+        }
+        let decorated_name = format!("{}@{}", ident, namespace);
+        let variable = Variable {
+            decorated_name,
+            data_type,
+        };
+        self.1.insert(key, variable.clone());
         variable
     }
 
@@ -59,13 +82,30 @@ impl VariableTable {
         }
     }
 
-    pub fn query_variable(&self, ident: &str) -> (bool, Variable) {
-        for (level, scope) in self.0.iter().enumerate().rev() {
-            if scope.contains_key(ident) {
-                return (level > 0, scope[ident].clone());
+    pub fn query_variable(
+        &self,
+        ident: &str,
+        namespace: &Option<String>,
+        current_namespace: &str,
+    ) -> (bool, Variable) {
+        if namespace.is_none() {
+            for scope in self.0.iter().rev() {
+                if scope.contains_key(ident) {
+                    return (true, scope[ident].clone());
+                }
             }
+            let key = (ident.to_owned(), current_namespace.to_owned());
+            if self.1.contains_key(&key) {
+                return (false, self.1[&key].clone());
+            }
+            panic!();
+        } else {
+            let key = (ident.to_owned(), namespace.as_ref().unwrap().to_owned());
+            if self.1.contains_key(&key) {
+                return (false, self.1[&key].clone());
+            }
+            panic!();
         }
-        panic!();
     }
 }
 
@@ -108,6 +148,7 @@ pub struct Generator {
     working_function_ident: String,
     working_mcfunction: Option<Mcfunction>,
     label_acc: u32,
+    custom_cmd_acc: u32,
     break_labels: Vec<String>,
     continue_labels: Vec<String>,
 }
@@ -122,6 +163,7 @@ impl Generator {
             working_function_ident: "".into(),
             working_mcfunction: None,
             label_acc: 0,
+            custom_cmd_acc: 0,
             break_labels: vec![],
             continue_labels: vec![],
         }
@@ -129,7 +171,7 @@ impl Generator {
 
     pub fn generate(&mut self, compile_units: Vec<(CompileUnit, String)>) -> Datapack {
         for (compile_unit, namespace) in &compile_units {
-            self.scan_func_defs(&compile_unit, &namespace);
+            self.scan_global_defs(&compile_unit, &namespace);
         }
         for (compile_unit, namespace) in compile_units {
             self.generate_from_namespace(compile_unit, namespace);
@@ -137,20 +179,107 @@ impl Generator {
         self.datapack.clone()
     }
 
-    fn scan_func_defs(&mut self, compile_unit: &CompileUnit, namespace: &str) {
-        for func_def in &compile_unit.func_defs {
-            self.function_table.new_function(
-                (namespace.to_owned(), func_def.ident.clone()),
-                func_def.clone(),
-            );
+    fn scan_global_defs(&mut self, compile_unit: &CompileUnit, namespace: &str) {
+        for global_def in &compile_unit.global_defs {
+            match global_def {
+                GlobalDef::FuncDef(func_def) => {
+                    self.function_table.new_function(
+                        (namespace.to_owned(), func_def.ident.clone()),
+                        func_def.clone(),
+                    );
+                }
+                GlobalDef::VariableDef {
+                    ident,
+                    init_value: _,
+                    data_type,
+                } => {
+                    self.variable_table
+                        .new_global_variable(&ident, &namespace, data_type.clone());
+                }
+            }
         }
     }
 
     fn generate_from_namespace(&mut self, mut compile_unit: CompileUnit, namespace: String) {
-        self.working_namespace = Some(Namespace::new(namespace));
+        self.working_namespace = Some(Namespace::new(namespace.clone()));
 
-        for func_def in &mut compile_unit.func_defs {
-            self.generate_from_func_def(func_def);
+        // handle global variable definitions
+        self.working_mcfunction = Some(Mcfunction::new("init".into()));
+        self.working_function_ident = "init".into();
+        self.working_mcfunction.as_mut().unwrap().append_prologue();
+        self.working_mcfunction
+            .as_mut()
+            .unwrap()
+            .append_command(&format!(
+                "function {}:init-label_0 with storage memory:temp",
+                namespace,
+            ));
+        self.working_mcfunction.as_mut().unwrap().append_epilogue();
+        self.working_namespace
+            .as_mut()
+            .unwrap()
+            .append_mcfunction(self.working_mcfunction.take().unwrap());
+        self.label_acc = 0;
+        self.working_mcfunction = Some(self.new_label());
+        for global_def in &mut compile_unit.global_defs {
+            match global_def {
+                GlobalDef::VariableDef {
+                    ident,
+                    init_value,
+                    data_type,
+                } => {
+                    let decorated_name = self
+                        .variable_table
+                        .query_variable(ident, &Some(namespace.clone()), &namespace)
+                        .1
+                        .decorated_name;
+                    let exp_val = self.generate_from_exp(init_value, &mut 0, &mut 0, &mut 0);
+                    match exp_val {
+                        ExpVal::Int { reg } => {
+                            if *data_type != DataType::Int {
+                                panic!();
+                            }
+                            self.working_mcfunction.as_mut().unwrap().append_commands(vec![
+                                &format!("execute store result storage memory:global {} int 1.0 run scoreboard players get {} registers", decorated_name, reg)
+                            ]);
+                        }
+                        ExpVal::Array {
+                            element_type,
+                            path_path,
+                        } => {
+                            match data_type {
+                                DataType::Array {
+                                    element_type: element_type_need,
+                                } => {
+                                    if **element_type_need != element_type {
+                                        panic!();
+                                    }
+                                }
+                                _ => unreachable!(),
+                            }
+                            self.working_mcfunction.as_mut().unwrap().append_commands(vec![
+                                &format!("data modify storage memory:temp target_path set value \"memory:global {}\"", decorated_name),
+                                &format!("data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
+                                &format!("function mcscript:mov_m_m with storage memory:temp"),
+                            ]);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        self.working_namespace
+            .as_mut()
+            .unwrap()
+            .append_mcfunction(self.working_mcfunction.take().unwrap());
+
+        // generate functions
+        self.custom_cmd_acc = 0;
+        for global_def in &mut compile_unit.global_defs {
+            match global_def {
+                GlobalDef::FuncDef(func_def) => self.generate_from_func_def(func_def),
+                _ => {}
+            }
         }
 
         self.datapack
@@ -161,15 +290,13 @@ impl Generator {
         self.working_function_ident = func_def.ident.clone();
 
         let mut entry = Mcfunction::new(self.working_function_ident.clone());
-        entry.append_commands(vec![
-            "scoreboard players add base_index registers 1",
-            "execute store result storage memory:temp base_index int 1.0 run scoreboard players get base_index registers",
-            "data modify storage memory:stack frame append from storage memory:temp arguments",
-            "",
-            &format!("function {}:{}-label_0 with storage memory:temp", self.working_namespace.as_ref().unwrap().name(), self.working_function_ident.clone()),
-            "",
-            "function mcscript:pop_frame with storage memory:temp",
-        ]);
+        entry.append_prologue();
+        entry.append_command(&format!(
+            "function {}:{}-label_0 with storage memory:temp",
+            self.working_namespace.as_ref().unwrap().name(),
+            self.working_function_ident.clone()
+        ));
+        entry.append_epilogue();
         self.working_namespace
             .as_mut()
             .unwrap()
@@ -198,10 +325,10 @@ impl Generator {
                         ExpVal::Int { reg } => {
                             let decorated_name = self
                                 .variable_table
-                                .new_variable(&decl.ident, DataType::Int)
+                                .new_local_variable(&decl.ident, DataType::Int)
                                 .decorated_name;
                             self.working_mcfunction.as_mut().unwrap().append_commands(vec![
-                                &format!("$execute store result storage memory:stack frame[$(base_index)].{} int 1.0 run scoreboard players get {} registers", decorated_name, reg)
+                                &format!("execute store result storage memory:stack frame[$(base_index)].{} int 1.0 run scoreboard players get {} registers", decorated_name, reg)
                             ]);
                         }
                         ExpVal::Array {
@@ -210,7 +337,7 @@ impl Generator {
                         } => {
                             let decorated_name = self
                                 .variable_table
-                                .new_variable(
+                                .new_local_variable(
                                     &decl.ident,
                                     DataType::Array {
                                         element_type: Box::new(element_type),
@@ -218,8 +345,8 @@ impl Generator {
                                 )
                                 .decorated_name;
                             self.working_mcfunction.as_mut().unwrap().append_commands(vec![
-                                &format!("$data modify storage memory:temp target_path set value \"memory:stack frame[$(base_index)].{}\"", decorated_name),
-                                &format!("$data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
+                                &format!("data modify storage memory:temp target_path set value \"memory:stack frame[$(base_index)].{}\"", decorated_name),
+                                &format!("data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
                                 &format!("function mcscript:mov_m_m with storage memory:temp"),
                             ]);
                         }
@@ -264,7 +391,7 @@ impl Generator {
                                         }
                                         self.working_mcfunction.as_mut().unwrap().append_commands(vec![
                                             "data modify storage memory:temp target_path set value \"memory:temp return_object\"",
-                                            &format!("$data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
+                                            &format!("data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
                                             "function mcscript:mov_m_m with storage memory:temp",
                                             "return 0",
                                         ]);
@@ -287,27 +414,36 @@ impl Generator {
                         let mut reg_acc = 0;
                         let mut path_acc = 0;
                         let mut arr_acc = 0;
-                        let exp_val = self.generate_from_exp(new_value, &mut reg_acc, &mut path_acc, &mut arr_acc);
+                        let exp_val = self.generate_from_exp(
+                            new_value,
+                            &mut reg_acc,
+                            &mut path_acc,
+                            &mut arr_acc,
+                        );
                         match lhs.as_mut() {
-                            Exp::Variable(ident) => {
-                                let (is_local, variable) =
-                                    self.variable_table.query_variable(&ident);
-                                if !is_local {
-                                    panic!();
-                                }
-
-                                let target_path = format!(
-                                    "memory:stack frame[$(base_index)].{}",
-                                    variable.decorated_name
+                            Exp::Variable { ident, namespace } => {
+                                let (is_local, variable) = self.variable_table.query_variable(
+                                    &ident,
+                                    namespace,
+                                    self.working_namespace.as_ref().unwrap().name(),
                                 );
+
+                                let target_path = if is_local {
+                                    Path(
+                                        "memory:stack".into(),
+                                        format!("frame[$(base_index)].{}", variable.decorated_name),
+                                    )
+                                } else {
+                                    Path("memory:global".into(), variable.decorated_name)
+                                };
 
                                 match exp_val {
                                     ExpVal::Int { reg } => match &variable.data_type {
                                         DataType::Int => {
                                             self.working_mcfunction.as_mut().unwrap().append_commands(vec![
                                                 &format!(
-                                                    "$execute store result storage {} int 1.0 run scoreboard players get {} registers",
-                                                    target_path, reg
+                                                    "execute store result storage {} {} int 1.0 run scoreboard players get {} registers",
+                                                    target_path.0, target_path.1, reg
                                                 )
                                             ]);
                                         }
@@ -327,8 +463,8 @@ impl Generator {
                                                 .as_mut()
                                                 .unwrap()
                                                 .append_commands(vec![
-                                                    &format!("$data modify storage memory:temp target_path set value \"{}\"", target_path),
-                                                    &format!("$data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
+                                                    &format!("data modify storage memory:temp target_path set value \"{} {}\"", target_path.0, target_path.1),
+                                                    &format!("data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
                                                     "function mcscript:mov_m_m with storage memory:temp"
                                                 ]);
                                         }
@@ -338,14 +474,18 @@ impl Generator {
                             }
                             Exp::ArrayElement { array, subscript } => {
                                 let (path_path, data_type) = self.get_element_path_path(
-                                    array, subscript, &mut reg_acc, &mut path_acc, &mut arr_acc,
+                                    array,
+                                    subscript,
+                                    &mut reg_acc,
+                                    &mut path_acc,
+                                    &mut arr_acc,
                                 );
 
                                 match exp_val {
                                     ExpVal::Int { reg } => match &data_type {
                                         DataType::Int => {
                                             self.working_mcfunction.as_mut().unwrap().append_commands(vec![
-                                                &format!("$data modify storage memory:temp target_path set from storage {} {}", path_path.0, path_path.1),
+                                                &format!("data modify storage memory:temp target_path set from storage {} {}", path_path.0, path_path.1),
                                                 &format!("data modify storage memory:temp src_reg set value \"{}\"", reg),
                                                 "function mcscript:mov_m_r with storage memory:temp",
                                             ]);
@@ -366,8 +506,8 @@ impl Generator {
                                                 .as_mut()
                                                 .unwrap()
                                                 .append_commands(vec![
-                                                    &format!("$data modify storage memory:temp target_path set from storage {} {}", path_path.0, path_path.1),
-                                                    &format!("$data modify storage memory:temp src_path set from storage {} {}", src_path_path.0, src_path_path.1),
+                                                    &format!("data modify storage memory:temp target_path set from storage {} {}", path_path.0, path_path.1),
+                                                    &format!("data modify storage memory:temp src_path set from storage {} {}", src_path_path.0, src_path_path.1),
                                                     "function mcscript:mov_m_m with storage memory:temp"
                                                 ]);
                                         }
@@ -525,6 +665,51 @@ impl Generator {
                                 self.continue_labels.last().unwrap(),
                             ));
                     }
+                    Stmt::InlineCommand { fmt_str, arguments } => {
+                        for (i, arg) in arguments.iter_mut().enumerate() {
+                            let exp_val = self.generate_from_exp(arg, &mut 0, &mut 0, &mut 0);
+                            match exp_val {
+                                ExpVal::Int { reg } => {
+                                    self.working_mcfunction.as_mut().unwrap().append_commands(vec![
+                                        &format!("execute store result storage memory:temp custom_command_arguments.{} int 1.0 run scoreboard players get {} registers", i, reg),
+                                    ]);
+                                }
+                                ExpVal::Array {
+                                    element_type: _,
+                                    path_path,
+                                } => {
+                                    self.working_mcfunction.as_mut().unwrap().append_commands(vec![
+                                        &format!("data modify storage memory:temp target_path set value \"memory:temp custom_command_arguments.{}\"", i),
+                                        &format!("data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
+                                        "function mcscript:mov_m_m with storage memory:temp",
+                                    ]);
+                                }
+                            }
+                        }
+                        let mut custom_cmd =
+                            Mcfunction::new(format!("custom_cmd_{}", self.custom_cmd_acc));
+                        self.custom_cmd_acc += 1;
+                        let mut cmd = fmt_str.to_owned();
+                        let mut i = 0;
+                        while cmd.find("{}").is_some() {
+                            cmd = cmd.replacen("{}", &format!("$({})", i), 1);
+                            i += 1;
+                        }
+                        custom_cmd.append_command(&format!("{}", cmd));
+                        let custom_cmd_name = custom_cmd.name().to_owned();
+                        self.working_namespace
+                            .as_mut()
+                            .unwrap()
+                            .append_mcfunction(custom_cmd);
+                        self.working_mcfunction
+                            .as_mut()
+                            .unwrap()
+                            .append_commands(vec![&format!(
+                                "function {}:{} with storage memory:temp custom_command_arguments",
+                                self.working_namespace.as_ref().unwrap().name(),
+                                custom_cmd_name
+                            )]);
+                    }
                 },
             }
         }
@@ -550,43 +735,59 @@ impl Generator {
                 *reg_acc += 1;
                 ExpVal::Int { reg: reg_res }
             }
-            Exp::Variable(ident) => {
-                let (is_local, variable) = self.variable_table.query_variable(ident);
+            Exp::Variable { ident, namespace } => {
+                let (is_local, variable) = self.variable_table.query_variable(
+                    ident,
+                    namespace,
+                    self.working_namespace.as_ref().unwrap().name(),
+                );
                 let decorated_name = variable.decorated_name;
 
                 match &variable.data_type {
                     DataType::Int => {
                         let reg_res = format!("r{}", reg_acc);
-                        if is_local {
-                            self.working_mcfunction.as_mut().unwrap().append_command(&format!(
-                                "$execute store result score {} registers run data get storage memory:stack frame[$(base_index)].{}",
-                                reg_res, decorated_name
-                            ));
+                        let path = if is_local {
+                            Path(
+                                "memory:stack".into(),
+                                format!("frame[$(base_index)].{}", decorated_name),
+                            )
                         } else {
-                            panic!();
-                        }
+                            Path("memory:global".into(), decorated_name)
+                        };
+                        self.working_mcfunction
+                            .as_mut()
+                            .unwrap()
+                            .append_command(&format!(
+                            "execute store result score {} registers run data get storage {} {}",
+                            reg_res, path.0, path.1
+                        ));
                         *reg_acc += 1;
                         ExpVal::Int { reg: reg_res }
                     }
                     DataType::Array { element_type } => {
-                        if is_local {
-                            let path_path = Path(
+                        let path_path = Path(
+                            "memory:stack".into(),
+                            format!("frame[$(base_index)].%path{}", path_acc),
+                        );
+                        let arr_path = if is_local {
+                            Path(
                                 "memory:stack".into(),
-                                format!("frame[$(base_index)].%path{}", path_acc),
-                            );
-                            *path_acc += 1;
-                            self.working_mcfunction.as_mut().unwrap().append_command(&format!(
-                                "$data modify storage {} {} set value \"memory:stack frame[$(base_index)].{}\"",
-                                path_path.0,
-                                path_path.1,
-                                decorated_name
-                            ));
-                            ExpVal::Array {
-                                element_type: *element_type.clone(),
-                                path_path,
-                            }
+                                format!("frame[$(base_index)].{}", decorated_name),
+                            )
                         } else {
-                            panic!();
+                            Path("memory:global".into(), decorated_name)
+                        };
+                        *path_acc += 1;
+                        self.working_mcfunction
+                            .as_mut()
+                            .unwrap()
+                            .append_command(&format!(
+                                "data modify storage {} {} set value \"{} {}\"",
+                                path_path.0, path_path.1, arr_path.0, arr_path.1
+                            ));
+                        ExpVal::Array {
+                            element_type: *element_type.clone(),
+                            path_path,
                         }
                     }
                 }
@@ -707,7 +908,7 @@ impl Generator {
                 // save registers
                 for i in 0..*reg_acc {
                     self.working_mcfunction.as_mut().unwrap().append_command(
-                        &format!("$execute store result storage memory:stack frame[$(base_index)].%r{} int 1.0 run scoreboard players get r{} registers", i, i)
+                        &format!("execute store result storage memory:stack frame[$(base_index)].%r{} int 1.0 run scoreboard players get r{} registers", i, i)
                     );
                 }
                 // calculate arguments
@@ -736,7 +937,7 @@ impl Generator {
                                 }
                                 self.working_mcfunction.as_mut().unwrap().append_commands(vec![
                                     &format!("data modify storage memory:temp target_path set value \"memory:temp arguments.%{}\"", i),
-                                    &format!("$data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
+                                    &format!("data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
                                     &format!("function mcscript:mov_m_m with storage memory:temp")
                                 ]);
                             }
@@ -755,7 +956,7 @@ impl Generator {
                 // restore registers
                 for i in 0..*reg_acc {
                     self.working_mcfunction.as_mut().unwrap().append_command(
-                        &format!("$execute store result score r{} registers run data get storage memory:stack frame[$(base_index)].%r{}", i, i)
+                        &format!("execute store result score r{} registers run data get storage memory:stack frame[$(base_index)].%r{}", i, i)
                     );
                 }
                 // store return value
@@ -787,8 +988,8 @@ impl Generator {
                                 .as_mut()
                                 .unwrap()
                                 .append_commands(vec![
-                                    &format!("$data modify storage {} {} set from storage memory:temp return_object", arr_path.0, arr_path.1),
-                                    &format!("$data modify storage {} {} set value \"{} {}\"", path_path.0, path_path.1, arr_path.0, arr_path.1),
+                                    &format!("data modify storage {} {} set from storage memory:temp return_object", arr_path.0, arr_path.1),
+                                    &format!("data modify storage {} {} set value \"{} {}\"", path_path.0, path_path.1, arr_path.0, arr_path.1),
                                 ]);
                             ExpVal::Array {
                                 element_type: *element_type.clone(),
@@ -828,11 +1029,11 @@ impl Generator {
                             .unwrap()
                             .append_commands(vec![
                                 &format!(
-                                    "$data modify storage {} {} set value []",
+                                    "data modify storage {} {} set value []",
                                     arr_path.0, arr_path.1
                                 ),
                                 &format!(
-                                    "$data modify storage {} {} set value \"{} {}\"",
+                                    "data modify storage {} {} set value \"{} {}\"",
                                     path_path.0, path_path.1, arr_path.0, arr_path.1
                                 ),
                                 &format!("scoreboard players set {} registers 0", reg_current_len),
@@ -857,7 +1058,7 @@ impl Generator {
                                 .unwrap()
                                 .append_commands(vec![
                                     &format!("execute store result storage memory:temp element int 1.0 run scoreboard players get {} registers", reg),
-                                    &format!("$data modify storage {} {} append from storage memory:temp element", arr_path.0, arr_path.1),
+                                    &format!("data modify storage {} {} append from storage memory:temp element", arr_path.0, arr_path.1),
                                 ]);
                             }
                             ExpVal::Array {
@@ -869,9 +1070,9 @@ impl Generator {
                                     .unwrap()
                                     .append_commands(vec![
                                         "data modify storage memory:temp target_path set value \"memory:temp element\"",
-                                        &format!("$data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
+                                        &format!("data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
                                         "function mcscript:mov_m_m with storage memory:temp",
-                                        &format!("$data modify storage {} {} append from storage memory:temp element", arr_path.0, arr_path.1),
+                                        &format!("data modify storage {} {} append from storage memory:temp element", arr_path.0, arr_path.1),
                                     ]);
                             }
                         }
@@ -918,7 +1119,7 @@ impl Generator {
                             ExpVal::Int { reg: reg_subscript } => {
                                 self.working_mcfunction.as_mut().unwrap().append_commands(vec![
                                     &format!("execute store result storage memory:temp subscript int 1.0 run scoreboard players get {} registers", reg_subscript),
-                                    &format!("$data modify storage memory:temp array_path set from storage {} {}", path_path.0, path_path.1),
+                                    &format!("data modify storage memory:temp array_path set from storage {} {}", path_path.0, path_path.1),
                                     "function mcscript:load_element_path_src with storage memory:temp",
                                 ]);
 
@@ -940,7 +1141,7 @@ impl Generator {
                                         );
                                         *path_acc += 1;
                                         self.working_mcfunction.as_mut().unwrap().append_command(
-                                            &format!("$data modify storage {} {} set from storage memory:temp src_path", path_path.0, path_path.1)
+                                            &format!("data modify storage {} {} set from storage memory:temp src_path", path_path.0, path_path.1)
                                         );
                                         ExpVal::Array {
                                             element_type: *element_type,
@@ -968,34 +1169,64 @@ impl Generator {
     ) -> (Path, DataType) {
         let subscript_val = self.generate_from_exp(subscript, reg_acc, path_acc, arr_acc);
         match subscript_val {
-            ExpVal::Int { reg } => match array {
-                Exp::Variable(ident) => {
-                    let (is_local, variable) = self.variable_table.query_variable(&ident);
-                    if !is_local {
-                        panic!();
+            ExpVal::Int { reg } => {
+                let element_type;
+                match array {
+                    Exp::Variable { ident, namespace } => {
+                        let (is_local, variable) = self.variable_table.query_variable(
+                            ident,
+                            namespace,
+                            self.working_namespace.as_ref().unwrap().name(),
+                        );
+                        element_type = match variable.data_type {
+                            DataType::Array { element_type } => element_type,
+                            _ => unreachable!(),
+                        };
+                        let arr_path = if is_local {
+                            Path(
+                                "memory:stack".into(),
+                                format!("frame[$(base_index)].{}", variable.decorated_name),
+                            )
+                        } else {
+                            Path("memory:global".into(), variable.decorated_name)
+                        };
+                        self.working_mcfunction
+                            .as_mut()
+                            .unwrap()
+                            .append_commands(vec![&format!(
+                                "data modify storage memory:temp array_path set value \"{} {}\"",
+                                arr_path.0, arr_path.1
+                            )]);
                     }
-                    let element_type = match variable.data_type {
-                        DataType::Array { element_type } => element_type,
-                        _ => unreachable!(),
-                    };
-                    let path_path = Path(
-                        "memory:stack".into(),
-                        format!("frame[$(base_index)].%path{}", path_acc),
-                    );
-                    *path_acc += 1;
-                    self.working_mcfunction.as_mut().unwrap().append_commands(vec![
-                            &format!("$data modify storage memory:temp array_path set value \"memory:stack frame[$(base_index)].{}\"", variable.decorated_name),
-                            &format!("execute store result storage memory:temp subscript int 1.0 run scoreboard players get {} registers", reg),
-                            "function mcscript:load_element_path_src with storage memory:temp",
-                            &format!("$data modify storage {} {} set from storage memory:temp src_path", path_path.0, path_path.1),
-                        ]);
-                    (path_path, *element_type)
+                    Exp::ArrayElement { array, subscript } => {
+                        let (arr_path_path, array_type) = self
+                            .get_element_path_path(array, subscript, reg_acc, path_acc, arr_acc);
+                        element_type = match array_type {
+                            DataType::Array { element_type } => element_type,
+                            _ => unreachable!(),
+                        };
+                        self.working_mcfunction
+                            .as_mut()
+                            .unwrap()
+                            .append_commands(vec![&format!(
+                                "data modify storage memory:temp array_path set from storage {} {}",
+                                arr_path_path.0, arr_path_path.1
+                            )]);
+                    }
+                    _ => unreachable!(),
                 }
-                Exp::ArrayElement { array, subscript } => {
-                    self.get_element_path_path(array, subscript, reg_acc, path_acc, arr_acc)
-                }
-                _ => unreachable!(),
-            },
+                let path_path = Path(
+                    "memory:stack".into(),
+                    format!("frame[$(base_index)].%path{}", path_acc),
+                );
+                *path_acc += 1;
+                self.working_mcfunction.as_mut().unwrap().append_commands(vec![
+                    &format!("execute store result storage memory:temp subscript int 1.0 run scoreboard players get {} registers", reg),
+                    "function mcscript:load_element_path_src with storage memory:temp",
+                    &format!("data modify storage {} {} set from storage memory:temp src_path", path_path.0, path_path.1),
+                ]);
+                (path_path, *element_type)
+            }
             _ => unreachable!(),
         }
     }

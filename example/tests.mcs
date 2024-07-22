@@ -43,3 +43,302 @@ fn test3() -> Array<int> {
 fn test4() -> int {
     return test_utils::fib(40);
 }
+
+fn var_defn_1() -> int {
+    let a = 3;
+    let b = 5;
+    return a + b;
+}
+
+fn var_defn_2() -> int {
+    let a = 3;
+    let b = 5;
+    {
+        let a = 5;
+        return a + b;
+    }
+}
+
+fn var_defn_3() -> int {
+    let a = 0;
+    let b0 = 0;
+    let _c = 0;
+    a = 1;
+    b0 = 2;
+    _c = 3;
+    return a + b0 + _c;
+}
+
+fn arr_defn_1() -> Array<int> {
+    let a = new Array(10, 0);
+    return a;
+}
+
+fn arr_defn_2() -> Array<Array<int>> {
+    let a = new Array(2, new Array(3, 0));
+    return a;
+}
+
+fn arr_subscript_1() -> int {
+    let arr = new Array(2, new Array(3, 0));
+    arr[0][0] = 123;
+    return arr[0][0];
+}
+
+fn arr_subscript_2() -> Array<Array<Array<int>>> {
+    let arr = new Array(2, new Array(2, new Array(1, 0)));
+    arr[0][0] = new Array(2, 3);
+    arr[1][0][0] = 4;
+    return arr;
+}
+
+fn func_defn_1() -> int {
+    let a = 10;
+    let b = test_utils::f1(a);
+    return b;
+}
+
+fn arr_arg_1() -> Array<Array<int>> {
+    let arr = new Array(2, 1);
+    let arr2 = new Array(2, arr);
+    arr2[1] = test_utils::f2(arr);
+    return arr2;
+}
+
+fn if_1() -> int {
+    let a = 10;
+    if a > 0 {
+        return 1;
+    }
+    return 0;
+}
+
+fn if_2() -> int {
+    let a = 10;
+    if a > 0 {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+fn if_3() -> int {
+    let a = 5;
+    if a == 5 {
+        a = 25;
+    } else {
+        a *= 2;
+    }
+    return a;
+}
+
+//fn if_4() -> int {
+//    let a = 5;
+//    let b = 10;
+//    if a == 6 || b == 0xb {
+//        return a;
+//    } else {
+//        if b == 10 && a == 1 {
+//            a = 25;
+//        } else if b == 10 && a == -5 {
+//            a += 15;
+//        } else {
+//            a = -+a;
+//        }
+//    }
+//    return a;
+//}
+
+fn if_5() -> int {
+    let a = 5;
+    let b = 10;
+    if a == 5 {
+        if b == 012 {
+            a = 25;
+        } else {
+            a += 15;
+        }
+    }
+    return a;
+}
+
+fn if_6() -> int {
+    let a = 5;
+    let b = 10;
+    if a == 5 {
+        if b == 10 {
+            a = 25;
+        }
+    } else {
+        a += 15;
+    }
+    return a;
+}
+
+fn while_if_1() -> int {
+    return test_utils::f3(2, 2);
+}
+
+fn while_1() -> int {
+    let i = 5;
+    let j = 7;
+    while i < 100 {
+        i += 30;
+        while j < 100 {
+            j += 6;
+        }
+        j -= 100;
+    }
+    return j;
+}
+
+fn while_2() -> int {
+    let a = 5;
+    let b = 6;
+    let c = 7;
+    let d = 10;
+    while a < 20 {
+        a += 3;
+        while b < 10 {
+            b += 1;
+            while c == 7 {
+                c -= 1;
+                while d < 20 {
+                    d += 3;
+                }
+                d -= 1;
+            }
+            c += 1;
+        }
+        b -= 2;
+    }
+    return a + (b + d) + c;
+}
+
+fn while_3() -> int {
+  let a = 5;
+  let b = 6;
+  let c = 7;
+  let d = 10;
+  let g = 1;
+  let h = 2;
+  let e = 4;
+  let f = 6;
+  while a < 20 {
+    a = a + 3;
+    while b < 10 {
+      b = b + 1;
+      while c == 7 {
+        c = c - 1;
+        while d < 20 {
+          d = d + 3;
+          while e > 1 {
+            e = e - 1;
+            while f > 2 {
+              f = f - 2;
+              while g < 3 {
+                g = g + 10;
+                while h < 10 {
+                  h = h + 8;
+                }
+                h = h - 1;
+              }
+              g = g - 8;
+            }
+            f = f + 1;
+          }
+          e = e + 1;
+        }
+        d = d - 1;
+      }
+      c = c + 1;
+    }
+    b = b - 2;
+  }
+  return (a + (b + d) + c) - (e + d - g + h);
+}
+
+fn break_1() -> int {
+    let i = 0;
+    let sum = 0;
+    while i < 100 {
+        if i == 50 {
+            break;
+        }
+        sum += i;
+        i += 1;
+    }
+    return sum;
+}
+
+fn continue_1() -> int {
+    let i = 0;
+    let sum = 0;
+    while i < 100 {
+        if i == 50 {
+            i += 1;
+            continue;
+        }
+        sum += i;
+        i += 1;
+    }
+    return sum;
+}
+
+fn glob_var_1() -> int {
+    test_utils::g_a += 1;
+    return test_utils::g_a;
+}
+
+fn glob_var_2() -> int {
+    return test_utils::g_b;
+}
+
+fn glob_var_3() -> int {
+    test_utils::g_arr_1[0] = 114;
+    return test_utils::g_c;
+}
+
+fn glob_var_4() -> int {
+    return test_utils::g_arr_1[0];
+}
+
+fn glob_var_5() -> int {
+    return test_utils::f4();
+}
+
+fn glob_var_6() -> Array<int> {
+    test_utils::g_arr_2[0][0] = 1;
+    test_utils::g_arr_2[0][1] = 2;
+    return test_utils::f5(test_utils::g_arr_2[0]);
+}
+
+fn glob_var_7() -> Array<Array<int>> {
+    return test_utils::f6(test_utils::g_arr_2);
+}
+
+fn glob_var_8() -> int {
+    let i = 0;
+    while i < 100 {
+        test_utils::f7();
+        i += 1;
+    }
+    return test_utils::g_sum_1;
+}
+
+fn glob_var_9() -> int {
+    let g_sum_1 = 20;
+    return g_sum_1 + test_utils::g_sum_1;
+}
+
+fn glob_var_10() -> int {
+    let result = 0;
+    let i = 0;
+    while i < 100 {
+        if test_utils::f8() == 1 {
+            result += 1;
+        }
+        i += 1;
+    }
+    return result < 100;
+}

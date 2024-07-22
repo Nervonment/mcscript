@@ -4,7 +4,13 @@ pub mod exp;
 
 #[derive(Debug)]
 pub struct CompileUnit {
-    pub func_defs: Vec<FuncDef>,
+    pub global_defs: Vec<GlobalDef>,
+}
+
+#[derive(Debug)]
+pub enum GlobalDef {
+    FuncDef(FuncDef),
+    VariableDef { ident: String, init_value: Box<Exp>, data_type: DataType },
 }
 
 #[derive(Debug, Clone)]
@@ -64,4 +70,8 @@ pub enum Stmt {
     Break,
     Continue,
     Exp(Box<Exp>),
+    InlineCommand {
+        fmt_str: String,
+        arguments: Vec<Box<Exp>>,
+    },
 }
