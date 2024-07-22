@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
 use crate::{
-    ast::{
+    backend::datapack::{Datapack, Mcfunction, Namespace},
+    frontend::ast::{
         exp::{BinaryOp, Exp, UnaryOp},
         Block, BlockItem, CompileUnit, DataType, FuncDef, FuncParam, GlobalDef, Stmt,
     },
-    datapack::{Datapack, Mcfunction, Namespace},
 };
 
 #[derive(Clone)]
@@ -37,8 +37,6 @@ impl VariableTable {
             panic!();
         }
         let decorated_name = format!("{}@{}", ident, self.0.len() - 1);
-        // let mut decorated_name = ident.to_owned();
-        // decorated_name.push_str(&format!("@{}", self.0.len() - 1));
         let variable = Variable {
             decorated_name: decorated_name.clone(),
             data_type,

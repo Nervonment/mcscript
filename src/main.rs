@@ -1,9 +1,9 @@
 use std::{env::args, fs::read_to_string, io::Result, path::Path};
 
-use lalrpop_util::lalrpop_mod;
-use mcscript::{datapack, generator::Generator};
-
-lalrpop_mod!(parser);
+use mcscript::{
+    backend::{datapack, generator::Generator},
+    frontend,
+};
 
 fn main() -> Result<()> {
     let mut args = args();
@@ -17,7 +17,9 @@ fn main() -> Result<()> {
         }
         let path = Path::new(&arg);
         let input = read_to_string(arg.clone())?;
-        let ast = parser::CompileUnitParser::new().parse(&input).unwrap();
+        let ast = frontend::parser::CompileUnitParser::new()
+            .parse(&input)
+            .unwrap();
         // println!("{:#?}", ast);
         compile_units.push((
             ast,

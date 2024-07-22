@@ -1,6 +1,5 @@
-pub mod ast;
-pub mod datapack;
-pub mod generator;
-pub mod lexer;
+pub mod backend;
+pub mod frontend;
+
 #[cfg(test)]
 pub mod tests;
