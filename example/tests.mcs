@@ -330,3 +330,15 @@ fn glob_var_9() -> int {
     let g_sum_1 = 20;
     return g_sum_1 + test_utils::g_sum_1;
 }
+
+fn glob_var_10() -> int {
+    let result = 0;
+    let i = 0;
+    while i < 100 {
+        if test_utils::f8() == 1 {
+            result += 1;
+        }
+        i += 1;
+    }
+    return result < 100;
+}

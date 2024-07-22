@@ -66,3 +66,15 @@ fn f6(arr: Array<Array<int>>) -> Array<Array<int>> {
 fn f7() {
     g_sum_1 += 1;
 }
+
+let f8_a: int = 7;
+fn f8() -> int {
+    let b = f8_a;
+    let f8_a = 1;
+    if f8_a == b {
+        f8_a += 1;
+        return 1;
+    } else {
+        return 0;
+    }
+}
