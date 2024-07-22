@@ -2,7 +2,26 @@
 
 MCScript 是一门简易的编程语言, 它的目标语言为 Minecraft 命令 (`.mcfunction`). MCScript 的目标是让 Minecraft 命令的编写变得更加方便. 
 
-*目前使用 MCScript 编译器生成的数据包性能大概率不如手工编写, 不建议将其用于生产用途.*
+*目前使用 MCScript 编译器生成的数据包性能可能不如手工编写, 不建议将其用于生产用途.*
+
+## 示例
+
+下面的 MCScript 代码的功能是在自己头顶向上生成一个10格高, 黄色和黑色混凝土交替的柱子: 
+```
+fn generate_column() {
+    let y = 2;
+    while y < 12 {
+        if y % 2 {
+            run_command!("setblock ~ ~{} ~ yellow_concrete", y);
+        } else {
+            run_command!("setblock ~ ~{} ~ black_concrete", y);
+        }
+        y += 1;
+    }
+}
+```
+
+![生成柱子](pictures/2024-07-22_14.37.48.png)
 
 ## 使用编译器
 MCScript 支持输出 Minecraft Java 版 1.21 版本的数据包 (数据包版本 48). 以下命令指定了输入文件为 `my_datapack.mcs`, 输出名为 `my_datapack` 的数据包 (包含输入文件中的函数). 
@@ -26,9 +45,7 @@ mcscript namespace_1.mcs namespace_2.mcs -o my_datapack
 /function file_name:func
 ```
 
-目前 MCScript 暂未支持输入和输出. 要查看函数运行后各个寄存器和内存(尤其是 `return_value` 寄存器和 `memory:temp return_object` 命令存储)的值, 请运行命令 `/scoreboard objectives setdisplay sidebar registers` 或 `data get storage memory:temp`.
-
-## 语法示例
+## 快速入门
 
 参见[此处](MCScript.md). 
 

@@ -316,3 +316,17 @@ fn glob_var_6() -> Array<int> {
 fn glob_var_7() -> Array<Array<int>> {
     return test_utils::f6(test_utils::g_arr_2);
 }
+
+fn glob_var_8() -> int {
+    let i = 0;
+    while i < 100 {
+        test_utils::f7();
+        i += 1;
+    }
+    return test_utils::g_sum_1;
+}
+
+fn glob_var_9() -> int {
+    let g_sum_1 = 20;
+    return g_sum_1 + test_utils::g_sum_1;
+}

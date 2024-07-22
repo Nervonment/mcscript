@@ -2,7 +2,7 @@
 
 MCScript 的语法很大程度上参考了 Rust (但是语义和 Rust 并不相同). 
 
-### 变量
+### 局部变量
 
 MCScript 中有两种数据类型: 整数和数组. 
 声明一个变量时, 必须指定它的初始值: 
@@ -14,9 +14,7 @@ let arr = new Array(length, value); // 声明一个整数的数组, 长度为 le
 let mat = new Array(length, new Array(length, value)); // 声明一个整数的数组的数组
 ```
 
-MCScript 编译器会自动推导表达式的类型, 因此声明变量时不用指定类型. 
-
-MCScript 暂只支持局部变量. 
+声明局部变量时不用指定类型, MCScript 编译器会自动推导局部变量的类型. 
 
 ### 运算
 
@@ -31,6 +29,8 @@ fn func(param1: int, param2: Array<int>) -> Array<Array<int>> {
     return new Array(param1, param2);
 }
 ```
+
+函数的名字不能为 `init`.
 
 如果函数没有返回值, 省略返回值类型标记即可: 
 
@@ -55,6 +55,22 @@ fn f2() {}
 fn f3() {
     namespace1::f1(); // 调用命名空间 namespace1 中的函数
     f2(); // 调用本命名空间中的函数
+}
+```
+
+MCScript 中的命名空间不能嵌套, 这是因为 Minecraft 数据包中的命名空间不能嵌套. 
+
+### 作用域
+
+一对大括号 `{` `}` 中间的部分构成了一个作用域. 子作用域中的变量会掩盖父作用域中的变量. 例如下面的例子中的函数会返回1.
+
+```
+fn main() -> int {
+    let a = 0;
+    {
+        let a = 1;
+        return a;
+    }
 }
 ```
 
@@ -156,3 +172,51 @@ fn main() -> int {
     return fib(40);
 }
 ```
+
+### 内联命令
+
+MCScript 与 Minecraft 世界交互的方式是通过内联命令. 你可以在函数内通过 `run_command!` 运行一条游戏内命令: 
+
+```
+fn hello_world() {
+    run_command!("say Hello, world! ");
+}
+```
+
+`run_command!` 可以接受格式化参数: 
+
+```
+fn show_result() {
+    let x = 1;
+    let y = 2;
+    run_command!("say {} + {} = {}", x, y, x + y);
+}
+```
+
+### 全局变量
+
+在 MCScript 中声明全局变量时需要指定初始值和类型: 
+
+```
+// namespace1.mcs
+let g_a: int = 1;
+let g_arr_1: Array<int> = new Array(10, 1);
+```
+
+使用相同命名空间中的全局变量时, 可以省略命名空间; 使用其他命名空间中的全局变量时, 需要指定命名空间: 
+
+```
+// namespace1.mcs
+fn f1() {
+    g_a += 1;
+}
+```
+
+```
+// namespace2.mcs
+fn f1() {
+    namespace1::g_a += 1;
+}
+```
+
+在游戏内, 需要手动运行 `/function <namespace>:init` 来初始化命名空间 `<namespace>` 中声明的全局变量. 例如运行 `/function namespace1:init` 来初始化上面示例中的全局变量. 

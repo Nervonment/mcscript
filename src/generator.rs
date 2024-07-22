@@ -695,7 +695,7 @@ impl Generator {
                             cmd = cmd.replacen("{}", &format!("$({})", i), 1);
                             i += 1;
                         }
-                        custom_cmd.append_command(&format!("${}", cmd));
+                        custom_cmd.append_command(&format!("{}", cmd));
                         let custom_cmd_name = custom_cmd.name().to_owned();
                         self.working_namespace
                             .as_mut()

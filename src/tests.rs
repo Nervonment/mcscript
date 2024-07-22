@@ -148,6 +148,8 @@ fn tests() -> Result<()> {
         ("glob_var_5", RT::Regsiter, "1919810"),
         ("glob_var_6", RT::Memory, "[1, 2]"),
         ("glob_var_7", RT::Memory, "[[1, 2], [0, 0]]"),
+        ("glob_var_8", RT::Regsiter, "100"),
+        ("glob_var_9", RT::Regsiter, "120"),
     ];
     for test in tests {
         test_one(test.0, test.1, test.2)?;

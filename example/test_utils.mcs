@@ -4,6 +4,7 @@ let g_arr_1: Array<int> = new Array(10, 1);
 let g_c: int = g_arr_1[0];
 let g_d: int = 1919810;
 let g_arr_2: Array<Array<int>> = new Array(2, new Array(2, 0));
+let g_sum_1: int = 0;
 
 fn fib_recursive(n: int) -> int {
     if n < 3 {
@@ -60,4 +61,8 @@ fn f5(arr: Array<int>) -> Array<int> {
 
 fn f6(arr: Array<Array<int>>) -> Array<Array<int>> {
     return arr;
+}
+
+fn f7() {
+    g_sum_1 += 1;
 }
