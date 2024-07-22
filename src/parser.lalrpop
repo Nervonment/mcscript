@@ -124,6 +124,7 @@ PrimaryExp: Box<Exp> = {
         Box::new(Exp::FuncCall { namespace, func_ident, arguments: args })
     },
     NewArray,
+    SquareBracketsArray, 
     ArrayElement,
     "(" <Exp> ")",
 }
@@ -136,7 +137,19 @@ NamespacePrefix: String = <Ident> "::";
 
 NewArray: Box<Exp> = {
     "new" "Array" "(" <length: Exp> "," <element: Exp> ")" => Box::new(Exp::NewArray{ <> }),
+    "[" <element: Exp> ";" <length: Exp> "]"  => Box::new(Exp::NewArray{ <> }),
 }
+
+SquareBracketsArray: Box<Exp> = {
+    <element_type: ArrayTypePrefix?> "[" <element: Exp?> <mut elements: ("," <Exp>)*> "]" => {
+        if element.is_some() {
+            elements.insert(0, element.unwrap());
+        }
+        Box::new(Exp::SquareBracketsArray { elements, element_type })
+    }
+}
+
+ArrayTypePrefix: DataType = "Array" "<" <DataType> ">";
 
 ArrayElement: Box<Exp> = {
     <array: PrimaryExp>  <subscript: Subscript> => Box::new(Exp::ArrayElement{ array, subscript })

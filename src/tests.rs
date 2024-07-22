@@ -13,7 +13,7 @@ enum RT {
     Regsiter,
 }
 
-fn test_one(mcfunction: &str, result_type: RT, expected_result: &str) -> Result<()> {
+fn test_one(mcfunction: &str, result_type: RT, expected_result: &str) -> Result<bool> {
     stdout()
         .execute(Print("running "))?
         .execute(PrintStyledContent(format!("tests:{}", mcfunction).blue()))?;
@@ -59,6 +59,7 @@ fn test_one(mcfunction: &str, result_type: RT, expected_result: &str) -> Result<
     };
     let result = result.trim();
 
+    let pass = result == expected_result;
     stdout()
         .execute(Print(", "))?
         .execute(PrintStyledContent(
@@ -67,14 +68,14 @@ fn test_one(mcfunction: &str, result_type: RT, expected_result: &str) -> Result<
         .execute(Print(" <-> "))?
         .execute(PrintStyledContent(format!("{}", result).cyan().bold()))?
         .execute(Print(", "))?
-        .execute(if result == expected_result {
+        .execute(if pass {
             PrintStyledContent(format!("pass").green())
         } else {
             PrintStyledContent(format!("fail").red())
         })?;
     println!();
 
-    Ok(())
+    Ok(pass)
 }
 
 #[test]
@@ -115,6 +116,8 @@ fn tests() -> Result<()> {
             .output()
     }?;
 
+    let mut pass = true; 
+
     let tests = [
         ("test1", RT::Regsiter, "1"),
         ("test2", RT::Memory, "[1, 3, 6, 10, 15, 21, 28, 36, 45, 55]"),
@@ -125,6 +128,15 @@ fn tests() -> Result<()> {
         ("var_defn_3", RT::Regsiter, "6"),
         ("arr_defn_1", RT::Memory, "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
         ("arr_defn_2", RT::Memory, "[[0, 0, 0], [0, 0, 0]]"),
+        ("arr_defn_3", RT::Memory, "[[0, 0, 0], [0, 0, 0]]"),
+        ("arr_init_list_1", RT::Memory, "[21, 34, 55]"),
+        (
+            "arr_init_list_2",
+            RT::Memory,
+            "[[2, 1], [4, 4], [5, 6, 7], []]",
+        ),
+        ("arr_init_list_3", RT::Memory, "[1, 2]"),
+        ("arr_init_list_4", RT::Regsiter, "14"),
         ("arr_subscript_1", RT::Regsiter, "123"),
         ("arr_subscript_2", RT::Memory, "[[[3, 3], [0]], [[4], [0]]]"),
         ("func_defn_1", RT::Regsiter, "9"),
@@ -153,8 +165,8 @@ fn tests() -> Result<()> {
         ("glob_var_10", RT::Regsiter, "1"),
     ];
     for test in tests {
-        test_one(test.0, test.1, test.2)?;
+        pass = pass && test_one(test.0, test.1, test.2)?;
     }
-
+    assert!(pass);
     Ok(())
 }

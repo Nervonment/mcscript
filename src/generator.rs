@@ -1106,6 +1106,127 @@ impl Generator {
                     _ => unreachable!(),
                 }
             }
+            Exp::SquareBracketsArray {
+                element_type,
+                elements,
+            } => {
+                let arr_path = Path(
+                    "memory:stack".into(),
+                    format!("frame[$(base_index)].%arr{}", arr_acc),
+                );
+                *arr_acc += 1;
+                let path_path = Path(
+                    "memory:stack".into(),
+                    format!("frame[$(base_index)].%path{}", path_acc),
+                );
+                *path_acc += 1;
+
+                self.working_mcfunction
+                    .as_mut()
+                    .unwrap()
+                    .append_commands(vec![
+                        &format!(
+                            "data modify storage {} {} set value \"{} {}\"",
+                            path_path.0, path_path.1, arr_path.0, arr_path.1
+                        ),
+                        &format!(
+                            "data modify storage {} {} set value []",
+                            arr_path.0, arr_path.1
+                        ),
+                    ]);
+                if elements.is_empty() {
+                    ExpVal::Array {
+                        element_type: element_type.as_ref().unwrap().clone(),
+                        path_path,
+                    }
+                } else {
+                    let mut iter = elements.iter_mut();
+                    let first = iter.next().unwrap();
+                    let exp_val = self.generate_from_exp(first, reg_acc, path_acc, arr_acc);
+                    let first_element_type = match &exp_val {
+                        ExpVal::Int { reg: _ } => DataType::Int,
+                        ExpVal::Array {
+                            element_type,
+                            path_path: _,
+                        } => DataType::Array {
+                            element_type: Box::new(element_type.clone()),
+                        },
+                    };
+                    if element_type.is_some()
+                        && element_type.as_ref().unwrap() != &first_element_type
+                    {
+                        panic!();
+                    }
+                    match exp_val {
+                        ExpVal::Int { reg } => {
+                            self.working_mcfunction
+                                .as_mut()
+                                .unwrap().append_commands(vec![
+                                    &format!("execute store result storage memory:temp element int 1.0 run scoreboard players get {} registers", reg),
+                                    &format!("data modify storage {} {} append from storage memory:temp element", arr_path.0, arr_path.1)
+                                ]);
+                        }
+                        ExpVal::Array {
+                            element_type: _,
+                            path_path,
+                        } => {
+                            self.working_mcfunction
+                                .as_mut()
+                                .unwrap()
+                                .append_commands(vec![
+                                    "data modify storage memory:temp target_path set value \"memory:temp element\"",
+                                    &format!("data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
+                                    "function mcscript:mov_m_m with storage memory:temp",
+                                    &format!("data modify storage {} {} append from storage memory:temp element", arr_path.0, arr_path.1)
+                                ]);
+                        }
+                    }
+                    for element in iter {
+                        let exp_val = self.generate_from_exp(element, reg_acc, path_acc, arr_acc);
+                        let element_type = match &exp_val {
+                            ExpVal::Int { reg: _ } => DataType::Int,
+                            ExpVal::Array {
+                                element_type,
+                                path_path: _,
+                            } => DataType::Array {
+                                element_type: Box::new(element_type.clone()),
+                            },
+                        };
+                        if element_type != first_element_type {
+                            panic!();
+                        }
+                        match exp_val {
+                            ExpVal::Int { reg } => {
+                                self.working_mcfunction
+                                .as_mut()
+                                .unwrap().append_commands(vec![
+                                    &format!("execute store result storage memory:temp element int 1.0 run scoreboard players get {} registers", reg),
+                                    &format!("data modify storage {} {} append from storage memory:temp element", arr_path.0, arr_path.1)
+                                ]);
+                            }
+                            ExpVal::Array {
+                                element_type: _,
+                                path_path,
+                            } => {
+                                self.working_mcfunction
+                                .as_mut()
+                                .unwrap()
+                                .append_commands(vec![
+                                    "data modify storage memory:temp target_path set value \"memory:temp element\"",
+                                    &format!("data modify storage memory:temp src_path set from storage {} {}", path_path.0, path_path.1),
+                                    "function mcscript:mov_m_m with storage memory:temp",
+                                    &format!("data modify storage {} {} append from storage memory:temp element", arr_path.0, arr_path.1)
+                                ]);
+                            }
+                        }
+                    }
+
+                    ExpVal::Array {
+                        element_type: first_element_type,
+                        path_path,
+                    }
+                }
+            }
             Exp::ArrayElement { array, subscript } => {
                 let array_val = self.generate_from_exp(array, reg_acc, path_acc, arr_acc);
                 match array_val {

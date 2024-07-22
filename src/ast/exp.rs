@@ -1,3 +1,5 @@
+use super::DataType;
+
 #[derive(Debug, Clone)]
 pub enum Exp {
     UnaryExp(UnaryOp, Box<Exp>),
@@ -19,6 +21,10 @@ pub enum Exp {
     NewArray {
         length: Box<Exp>,
         element: Box<Exp>,
+    },
+    SquareBracketsArray {
+        element_type: Option<DataType>,
+        elements: Vec<Box<Exp>>,
     },
 }
 
