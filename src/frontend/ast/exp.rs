@@ -1,4 +1,4 @@
-use super::DataType;
+use super::{DataType, Ident};
 
 #[derive(Debug, Clone)]
 pub enum Exp {
@@ -6,16 +6,16 @@ pub enum Exp {
     BinaryExp(BinaryOp, Box<Exp>, Box<Exp>),
     Number(i32),
     Variable {
-        ident: String,
-        namespace: Option<String>,
+        ident: Ident,
+        namespace: Option<Ident>,
     },
     ArrayElement {
         array: Box<Exp>,
         subscript: Box<Exp>,
     },
     FuncCall {
-        namespace: Option<String>,
-        func_ident: String,
+        namespace: Option<Ident>,
+        func_ident: Ident,
         arguments: Vec<Box<Exp>>,
     },
     NewArray {

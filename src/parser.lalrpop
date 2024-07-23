@@ -1,6 +1,6 @@
 use crate::frontend::{
     ast::{
-        CompileUnit, GlobalDef, FuncDef, Block, BlockItem, Stmt, Decl, FuncParam, DataType,
+        CompileUnit, GlobalDef, FuncDef, Block, BlockItem, Stmt, Decl, FuncParam, DataType, Ident, SrcLocation, 
         exp::{ Exp, UnaryOp, BinaryOp },
     },
     lexer::apply_string_escapes,
@@ -44,7 +44,7 @@ DataType: DataType = {
     "Array" "<" <element_type: DataType> ">" => DataType::Array { element_type: Box::new(<>) },
 }
 
-Ident: String = r"[_a-zA-Z][_a-zA-Z0-9]*" => <>.to_string();
+Ident: Ident = <begin: @L> <s: r"[_a-zA-Z][_a-zA-Z0-9]*"> <end: @R> => Ident { string: s.to_string(), src_loc: SrcLocation { begin, end } };
 
 Block: Block = "{" <items: BlockItem*> "}" => Block(<>);
 
@@ -133,7 +133,7 @@ Variable: Box<Exp> = {
     <namespace: NamespacePrefix?> <ident: Ident> => Box::new(Exp::Variable { ident, namespace }),
 }
 
-NamespacePrefix: String = <Ident> "::";
+NamespacePrefix: Ident = <Ident> "::";
 
 NewArray: Box<Exp> = {
     "new" "Array" "(" <length: Exp> "," <element: Exp> ")" => Box::new(Exp::NewArray{ <> }),

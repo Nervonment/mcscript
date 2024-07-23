@@ -9,6 +9,8 @@ use crossterm::{
 };
 use lalrpop_util::{lexer::Token, ParseError};
 
+use crate::backend::error::SemanticError;
+
 pub struct Split<'a>(Vec<(&'a str, usize, usize)>);
 
 impl<'a> Split<'a> {
@@ -73,7 +75,7 @@ pub fn show_error_message(
             "{}:{}:{}",
             file_path.to_str().unwrap(),
             line_num,
-            begin
+            begin + 1
         )))?
         .execute(Print("\n"))?
         .execute(Print(&space))?
@@ -146,6 +148,32 @@ pub fn handle_parse_error(
         ParseError::User { error } => {
             println!("{}", error);
         }
+    }
+    Ok(())
+}
+
+pub fn handle_semantic_error(file_path: &Path, content: &str, err: &SemanticError) -> Result<()> {
+    let content = Split::new(content);
+    match err {
+        SemanticError::MultipleDefinition { ident, begin, end } => {
+            show_error_message(
+                file_path,
+                &content,
+                *begin,
+                *end,
+                &format!("\"{}\" is defined multiple times", ident),
+            )?;
+        }
+        SemanticError::UndefinedIdentifier { ident, begin, end } => {
+            show_error_message(
+                file_path,
+                &content,
+                *begin,
+                *end,
+                &format!("\"{}\" is not defined", ident),
+            )?;
+        }
+        _ => unreachable!(),
     }
     Ok(())
 }
