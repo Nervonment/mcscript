@@ -112,7 +112,7 @@ IntConst: i32 = {
     r"0[xX][0-9a-fA-F]+" => i32::from_str_radix(&<>[2..], 16).unwrap(),
 }
 
-Exp: Box<Exp> = EqExp;
+Exp: Box<Exp> = LOrExp;
 
 PrimaryExp: Box<Exp> = {
     Number => Box::new(Exp::Number(<>)),
@@ -212,4 +212,14 @@ EqExp: Box<Exp> = {
 EqOp: BinaryOp = {
     "==" => BinaryOp::Eq,
     "!=" => BinaryOp::Ne,
+}
+
+LAndExp: Box<Exp> = {
+    <lhs: LAndExp> "&&" <rhs: EqExp> => Box::new(Exp::BinaryExp(BinaryOp::LAnd, lhs, rhs)),
+    EqExp,
+}
+
+LOrExp: Box<Exp> = {
+    <lhs: LOrExp> "||" <rhs: LAndExp> => Box::new(Exp::BinaryExp(BinaryOp::LOr, lhs, rhs)),
+    LAndExp,
 }

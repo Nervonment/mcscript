@@ -127,7 +127,7 @@ fn tests() -> Result<()> {
         ("if_1", "1"),
         ("if_2", "1"),
         ("if_3", "25"),
-        // ("if_4",  "-5"),
+        ("if_4",  "-5"),
         ("if_5", "25"),
         ("if_6", "25"),
         ("while_if_1", "88"),
@@ -152,6 +152,10 @@ fn tests() -> Result<()> {
         ("binary_op_2", "20"),
         ("binary_op_3", "28"),
         ("binary_op_4", "6"),
+        ("binary_op_5", "4"),
+        ("binary_op_6", "0"),
+        ("binary_op_7", "1"),
+        ("binary_op_8", "1"),
     ];
     for test in tests {
         all_pass = all_pass && test_one(test.0, test.1)?;

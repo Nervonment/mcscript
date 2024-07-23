@@ -760,56 +760,84 @@ impl Generator {
                 }
             }
             Exp::BinaryExp(op, lhs, rhs) => {
-                let (op, is_rel, is_ne) = match op {
-                    BinaryOp::Add => ("+=", false, false),
-                    BinaryOp::Sub => ("-=", false, false),
-                    BinaryOp::Mul => ("*=", false, false),
-                    BinaryOp::Div => ("/=", false, false),
-                    BinaryOp::Mod => ("%=", false, false),
-                    BinaryOp::Lt => ("<", true, false),
-                    BinaryOp::Le => ("<=", true, false),
-                    BinaryOp::Gt => (">", true, false),
-                    BinaryOp::Ge => (">=", true, false),
-                    BinaryOp::Eq => ("=", true, false),
-                    BinaryOp::Ne => ("=", true, true),
-                };
                 let lhs_val = self.eval(lhs, reg_acc, obj_acc)?;
                 let rhs_val = self.eval(rhs, reg_acc, obj_acc)?;
-
                 if let DataType::Int = lhs_val.data_type {
                     if let DataType::Int = rhs_val.data_type {
-                        let reg_rhs = self.to_reg_readonly(&rhs_val.location, reg_acc);
                         let reg_res = reg_acc.new_reg();
-                        if !is_rel {
-                            self.mov(&reg_res, &lhs_val.location);
-                            self.working_mcfunction().append_command(&format!(
-                                "scoreboard players operation {} registers {} {} registers",
-                                reg_res, op, reg_rhs
-                            ));
-                        } else {
+                        let reg_rhs = self.to_reg_readonly(&rhs_val.location, reg_acc);
+                        // TODO: short circuit
+                        if let BinaryOp::LAnd = op {
                             let reg_lhs = self.to_reg_readonly(&lhs_val.location, reg_acc);
-                            if !is_ne {
-                                self.mov_immediate(&reg_res, "0", obj_acc);
-                                self.working_mcfunction().append_command(
+                            self.mov_immediate(&reg_res, "1", obj_acc);
+                            self.working_mcfunction().append_commands(vec![
+                                &format!("execute if score {} registers matches 0 run scoreboard players set {} registers 0", reg_lhs, reg_res),
+                                &format!("execute if score {} registers matches 0 run scoreboard players set {} registers 0", reg_rhs, reg_res),
+                            ]);
+                            return Ok(ExpVal {
+                                data_type: DataType::Int,
+                                location: reg_res,
+                            });
+                        } else if let BinaryOp::LOr = op {
+                            let reg_lhs = self.to_reg_readonly(&lhs_val.location, reg_acc);
+                            self.mov_immediate(&reg_res, "0", obj_acc);
+                            self.working_mcfunction().append_commands(vec![
+                                &format!("execute if score {} registers matches 1.. run scoreboard players set {} registers 1", reg_lhs, reg_res),
+                                &format!("execute if score {} registers matches ..-1 run scoreboard players set {} registers 1", reg_lhs, reg_res),
+                                &format!("execute if score {} registers matches 1.. run scoreboard players set {} registers 1", reg_rhs, reg_res),
+                                &format!("execute if score {} registers matches ..-1 run scoreboard players set {} registers 1", reg_rhs, reg_res),
+                            ]);
+                            return Ok(ExpVal {
+                                data_type: DataType::Int,
+                                location: reg_res,
+                            });
+                        } else {
+                            let (op, is_rel, is_ne) = match op {
+                                BinaryOp::Add => ("+=", false, false),
+                                BinaryOp::Sub => ("-=", false, false),
+                                BinaryOp::Mul => ("*=", false, false),
+                                BinaryOp::Div => ("/=", false, false),
+                                BinaryOp::Mod => ("%=", false, false),
+                                BinaryOp::Lt => ("<", true, false),
+                                BinaryOp::Le => ("<=", true, false),
+                                BinaryOp::Gt => (">", true, false),
+                                BinaryOp::Ge => (">=", true, false),
+                                BinaryOp::Eq => ("=", true, false),
+                                BinaryOp::Ne => ("=", true, true),
+                                _ => unreachable!(),
+                            };
+
+                            if !is_rel {
+                                self.mov(&reg_res, &lhs_val.location);
+                                self.working_mcfunction().append_command(&format!(
+                                    "scoreboard players operation {} registers {} {} registers",
+                                    reg_res, op, reg_rhs
+                                ));
+                            } else {
+                                let reg_lhs = self.to_reg_readonly(&lhs_val.location, reg_acc);
+                                if !is_ne {
+                                    self.mov_immediate(&reg_res, "0", obj_acc);
+                                    self.working_mcfunction().append_command(
                                     &format!(
                                         "execute if score {} registers {} {} registers run scoreboard players set {} registers 1",
                                         reg_lhs, op, reg_rhs, reg_res
                                     )
                                 );
-                            } else {
-                                self.mov_immediate(&reg_res, "1", obj_acc);
-                                self.working_mcfunction().append_command(
+                                } else {
+                                    self.mov_immediate(&reg_res, "1", obj_acc);
+                                    self.working_mcfunction().append_command(
                                     &format!(
                                         "execute if score {} registers {} {} registers run scoreboard players set {} registers 0",
                                         reg_lhs, op, reg_rhs, reg_res
                                     )
                                 );
+                                }
                             }
+                            return Ok(ExpVal {
+                                data_type: DataType::Int,
+                                location: reg_res,
+                            });
                         }
-                        return Ok(ExpVal {
-                            data_type: DataType::Int,
-                            location: reg_res,
-                        });
                     }
                 }
                 panic!();
