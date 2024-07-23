@@ -2,7 +2,7 @@ use std::{env::args, fs::read_to_string, io::Result, path::Path};
 
 use mcscript::{
     backend::{datapack, generator::Generator},
-    frontend,
+    frontend::{self, error::handle_parse_error},
 };
 
 fn main() -> Result<()> {
@@ -17,14 +17,18 @@ fn main() -> Result<()> {
         }
         let path = Path::new(&arg);
         let input = read_to_string(arg.clone())?;
-        let ast = frontend::parser::CompileUnitParser::new()
-            .parse(&input)
-            .unwrap();
-        // println!("{:#?}", ast);
-        compile_units.push((
-            ast,
-            path.file_stem().unwrap().to_owned().into_string().unwrap(),
-        ));
+        let parse_res = frontend::parser::CompileUnitParser::new().parse(&input);
+        match parse_res {
+            Ok(ast) => {
+                compile_units.push((
+                    ast,
+                    path.file_stem().unwrap().to_owned().into_string().unwrap(),
+                ));
+            }
+            Err(err) => {
+                handle_parse_error(path, &input, &err)?;
+            }
+        }
     }
     if arg == "-o" {
         let output = args.next().unwrap();
