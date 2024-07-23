@@ -47,4 +47,6 @@ pub enum BinaryOp {
     Ge,
     Eq,
     Ne,
+    LAnd,
+    LOr,
 }
