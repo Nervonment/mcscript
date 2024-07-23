@@ -21,7 +21,9 @@ pub fn mcscript_datapack(path: String) -> Datapack {
     let mut mov_m_r = Mcfunction::new("mov_m_r".into());
     mov_m_r.append_command("execute store result storage $(target_path) int 1.0 run scoreboard players get $(src_reg) registers");
     let mut mov_r_m = Mcfunction::new("mov_r_m".into());
-    mov_r_m.append_command("execute store result score $(target_reg) registers run data get storage $(src_path) 1.0");
+    mov_r_m.append_command(
+        "execute store result score $(target_reg) registers run data get storage $(src_path) 1.0",
+    );
     let mut load_element_path = Mcfunction::new("load_element_path".into());
     load_element_path.append_command(
         "data modify storage memory:temp element_path set value \"$(array_path)[$(subscript)]\"",

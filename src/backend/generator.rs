@@ -4,9 +4,11 @@ use crate::{
     backend::datapack::{Datapack, Mcfunction, Namespace},
     frontend::ast::{
         exp::{BinaryOp, Exp, UnaryOp},
-        Block, BlockItem, CompileUnit, DataType, FuncDef, FuncParam, GlobalDef, Stmt,
+        Block, BlockItem, CompileUnit, DataType, FuncDef, FuncParam, GlobalDef, Ident, Stmt,
     },
 };
+
+use super::error::SemanticError;
 
 #[derive(Clone)]
 struct Variable {
@@ -46,11 +48,19 @@ impl VariableTable {
         self.0.pop();
     }
 
-    pub fn new_local_variable(&mut self, ident: &str, data_type: DataType) -> Variable {
-        if self.0.last().unwrap().contains_key(ident) {
-            panic!();
+    pub fn new_local_variable(
+        &mut self,
+        ident: &Ident,
+        data_type: DataType,
+    ) -> Result<Variable, SemanticError> {
+        if self.0.last().unwrap().contains_key(&ident.string) {
+            return Err(SemanticError::MultipleDefinition {
+                ident: ident.string.clone(),
+                begin: ident.src_loc.begin,
+                end: ident.src_loc.end,
+            });
         }
-        let decorated_name = format!("{}@{}", ident, self.0.len() - 1);
+        let decorated_name = format!("{}@{}", ident.string, self.0.len() - 1);
         let variable = Variable {
             is_local: true,
             decorated_name: decorated_name.clone(),
@@ -59,35 +69,39 @@ impl VariableTable {
         self.0
             .last_mut()
             .unwrap()
-            .insert(ident.to_owned(), variable.clone());
-        variable
+            .insert(ident.string.to_owned(), variable.clone());
+        Ok(variable)
     }
 
     pub fn new_global_variable(
         &mut self,
-        ident: &str,
+        ident: &Ident,
         namespace: &str,
         data_type: DataType,
-    ) -> Variable {
-        let key = (ident.to_owned(), namespace.to_owned());
+    ) -> Result<Variable, SemanticError> {
+        let key = (ident.string.to_owned(), namespace.to_owned());
         if self.1.contains_key(&key) {
-            panic!();
+            return Err(SemanticError::MultipleDefinition {
+                ident: ident.string.to_owned(),
+                begin: ident.src_loc.begin,
+                end: ident.src_loc.end,
+            });
         }
-        let decorated_name = format!("{}@{}", ident, namespace);
+        let decorated_name = format!("{}@{}", ident.string, namespace);
         let variable = Variable {
             is_local: false,
             decorated_name,
             data_type,
         };
         self.1.insert(key, variable.clone());
-        variable
+        Ok(variable)
     }
 
     pub fn set_parameters(&mut self, params: &Vec<FuncParam>) {
         for (i, param) in params.iter().enumerate() {
             let decorated_name = format!("%{}", i);
             self.0.last_mut().unwrap().insert(
-                param.ident.clone(),
+                param.ident.string.clone(),
                 Variable {
                     is_local: true,
                     decorated_name,
@@ -99,27 +113,38 @@ impl VariableTable {
 
     pub fn query_variable(
         &self,
-        ident: &str,
+        ident: &Ident,
         namespace: &Option<String>,
         current_namespace: &str,
-    ) -> Variable {
+    ) -> Result<Variable, SemanticError> {
         if namespace.is_none() {
             for scope in self.0.iter().rev() {
-                if scope.contains_key(ident) {
-                    return scope[ident].clone();
+                if scope.contains_key(&ident.string) {
+                    return Ok(scope[&ident.string].clone());
                 }
             }
-            let key = (ident.to_owned(), current_namespace.to_owned());
+            let key = (ident.string.to_owned(), current_namespace.to_owned());
             if self.1.contains_key(&key) {
-                return self.1[&key].clone();
+                return Ok(self.1[&key].clone());
             }
-            panic!();
+            Err(SemanticError::UndefinedIdentifier {
+                ident: ident.string.to_owned(),
+                begin: ident.src_loc.begin,
+                end: ident.src_loc.end,
+            })
         } else {
-            let key = (ident.to_owned(), namespace.as_ref().unwrap().to_owned());
+            let key = (
+                ident.string.to_owned(),
+                namespace.as_ref().unwrap().to_owned(),
+            );
             if self.1.contains_key(&key) {
-                return self.1[&key].clone();
+                return Ok(self.1[&key].clone());
             }
-            panic!();
+            Err(SemanticError::UndefinedIdentifier {
+                ident: ident.string.to_owned(),
+                begin: ident.src_loc.begin,
+                end: ident.src_loc.end,
+            })
         }
     }
 }
@@ -131,15 +156,37 @@ impl FunctionTable {
         Self(HashMap::<_, _>::new())
     }
 
-    pub fn new_function(&mut self, key: (String, String), func_def: FuncDef) {
+    pub fn new_function(
+        &mut self,
+        namespace: &str,
+        ident: &Ident,
+        func_def: FuncDef,
+    ) -> Result<(), SemanticError> {
+        let key = (namespace.to_owned(), ident.string.to_owned());
         if self.0.contains_key(&key) {
-            panic!();
+            return Err(SemanticError::MultipleDefinition {
+                ident: ident.string.to_owned(),
+                begin: ident.src_loc.begin,
+                end: ident.src_loc.end,
+            });
         }
         self.0.insert(key, func_def);
+        Ok(())
     }
 
-    pub fn query_function(&self, key: (&str, &str)) -> &FuncDef {
-        self.0.get(&(key.0.to_owned(), key.1.to_owned())).unwrap()
+    pub fn query_function(
+        &self,
+        namespace: &str,
+        ident: &Ident,
+    ) -> Result<&FuncDef, SemanticError> {
+        match self.0.get(&(namespace.to_owned(), ident.string.to_owned())) {
+            Some(func_def) => Ok(func_def),
+            None => Err(SemanticError::UndefinedIdentifier {
+                ident: ident.string.to_owned(),
+                begin: ident.src_loc.begin,
+                end: ident.src_loc.end,
+            }),
+        }
     }
 }
 
@@ -247,24 +294,34 @@ impl Generator {
         }
     }
 
-    pub fn generate(&mut self, compile_units: Vec<(CompileUnit, String)>) -> Datapack {
+    pub fn generate(
+        &mut self,
+        compile_units: Vec<(CompileUnit, String)>,
+    ) -> Result<Datapack, (String, SemanticError)> {
         for (compile_unit, namespace) in &compile_units {
-            self.scan_global_defs(compile_unit, namespace);
+            self.scan_global_defs(compile_unit, namespace)
+                .map_err(|err| (namespace.to_owned(), err))?;
         }
         for (compile_unit, namespace) in compile_units {
-            self.generate_from_namespace(compile_unit, namespace);
+            self.generate_from_namespace(compile_unit, namespace.clone())
+                .map_err(|err| (namespace.clone(), err))?;
         }
-        self.datapack.clone()
+        Ok(self.datapack.clone())
     }
 
-    fn scan_global_defs(&mut self, compile_unit: &CompileUnit, namespace: &str) {
+    fn scan_global_defs(
+        &mut self,
+        compile_unit: &CompileUnit,
+        namespace: &str,
+    ) -> Result<(), SemanticError> {
         for global_def in &compile_unit.global_defs {
             match global_def {
                 GlobalDef::FuncDef(func_def) => {
                     self.function_table.new_function(
-                        (namespace.to_owned(), func_def.ident.clone()),
+                        namespace,
+                        &func_def.ident,
                         func_def.clone(),
-                    );
+                    )?;
                 }
                 GlobalDef::VariableDef {
                     ident,
@@ -272,13 +329,18 @@ impl Generator {
                     data_type,
                 } => {
                     self.variable_table
-                        .new_global_variable(ident, namespace, data_type.clone());
+                        .new_global_variable(ident, namespace, data_type.clone())?;
                 }
             }
         }
+        Ok(())
     }
 
-    fn generate_from_namespace(&mut self, mut compile_unit: CompileUnit, namespace: String) {
+    fn generate_from_namespace(
+        &mut self,
+        mut compile_unit: CompileUnit,
+        namespace: String,
+    ) -> Result<(), SemanticError> {
         self.working_namespace = Some(Namespace::new(namespace.clone()));
 
         // handle global variable definitions
@@ -304,8 +366,8 @@ impl Generator {
                         ident,
                         &Some(namespace.clone()),
                         &namespace,
-                    );
-                    let exp_val = self.eval(init_value, &mut RegAcc::new(), &mut ObjAcc::new());
+                    )?;
+                    let exp_val = self.eval(init_value, &mut RegAcc::new(), &mut ObjAcc::new())?;
                     if &exp_val.data_type != data_type {
                         panic!();
                     }
@@ -322,18 +384,18 @@ impl Generator {
         // generate functions
         self.custom_cmd_acc = 0;
         for global_def in &mut compile_unit.global_defs {
-            match global_def {
-                GlobalDef::FuncDef(func_def) => self.generate_from_func_def(func_def),
-                _ => {}
+            if let GlobalDef::FuncDef(func_def) = global_def {
+                self.generate_from_func_def(func_def)?;
             }
         }
 
         self.datapack
             .append_namespace(self.working_namespace.take().unwrap());
+        Ok(())
     }
 
-    fn generate_from_func_def(&mut self, func_def: &mut FuncDef) {
-        self.working_function_ident = func_def.ident.clone();
+    fn generate_from_func_def(&mut self, func_def: &mut FuncDef) -> Result<(), SemanticError> {
+        self.working_function_ident = func_def.ident.string.clone();
 
         let mut entry = Mcfunction::new(self.working_function_ident.clone());
         entry.append_prologue();
@@ -352,44 +414,48 @@ impl Generator {
         self.working_mcfunction = Some(self.new_label());
         self.variable_table.enter_scope();
         self.variable_table.set_parameters(&func_def.params);
-        self.generate_from_block(&mut func_def.block);
+        self.generate_from_block(&mut func_def.block, &func_def.func_type)?;
         self.variable_table.leave_scope();
 
         self.working_namespace
             .as_mut()
             .unwrap()
             .append_mcfunction(self.working_mcfunction.take().unwrap());
+        Ok(())
     }
 
-    fn generate_from_block(&mut self, block: &mut Block) {
+    fn generate_from_block(
+        &mut self,
+        block: &mut Block,
+        expected_return_type: &Option<DataType>,
+    ) -> Result<(), SemanticError> {
         for block_item in &mut block.0 {
             match block_item {
                 BlockItem::Decl(decl) => {
                     let exp_val =
-                        self.eval(&mut decl.init_value, &mut RegAcc::new(), &mut ObjAcc::new());
+                        self.eval(&mut decl.init_value, &mut RegAcc::new(), &mut ObjAcc::new())?;
                     let variable = self
                         .variable_table
-                        .new_local_variable(&decl.ident, exp_val.data_type);
+                        .new_local_variable(&decl.ident, exp_val.data_type)?;
                     self.mov(&variable.memory_location(), &exp_val.location);
                 }
                 BlockItem::Stmt(stmt) => {
                     match stmt {
                         Stmt::Return { return_value } => {
-                            let func_def = self
-                                .function_table
-                                .query_function((
-                                    self.working_namespace.as_ref().unwrap().name(),
-                                    &self.working_function_ident,
-                                ))
-                                .clone();
                             if return_value.is_some() {
                                 let return_value = return_value.as_mut().unwrap();
-                                let exp_val =
-                                    self.eval(return_value, &mut RegAcc::new(), &mut ObjAcc::new());
+                                let exp_val = self.eval(
+                                    return_value,
+                                    &mut RegAcc::new(),
+                                    &mut ObjAcc::new(),
+                                )?;
+                                if &exp_val.data_type != expected_return_type.as_ref().unwrap() {
+                                    panic!();
+                                }
                                 self.mov(&Location::return_value(), &exp_val.location);
                                 self.working_mcfunction().append_command("return 0");
                             } else {
-                                if func_def.func_type.is_some() {
+                                if expected_return_type.is_some() {
                                     panic!();
                                 } else {
                                     self.working_mcfunction().append_command("return 0");
@@ -399,8 +465,8 @@ impl Generator {
                         Stmt::Assign { lhs, new_value } => {
                             let mut reg_acc = RegAcc::new();
                             let mut obj_acc = ObjAcc::new();
-                            let rhs_val = self.eval(new_value, &mut reg_acc, &mut obj_acc);
-                            let lhs_val = self.eval(lhs, &mut reg_acc, &mut obj_acc);
+                            let rhs_val = self.eval(new_value, &mut reg_acc, &mut obj_acc)?;
+                            let lhs_val = self.eval(lhs, &mut reg_acc, &mut obj_acc)?;
                             if lhs_val.data_type != rhs_val.data_type {
                                 panic!();
                             }
@@ -408,7 +474,7 @@ impl Generator {
                         }
                         Stmt::Block(block) => {
                             self.variable_table.enter_scope();
-                            self.generate_from_block(block);
+                            self.generate_from_block(block, expected_return_type)?;
                             self.variable_table.leave_scope();
                         }
                         Stmt::IfElse {
@@ -417,7 +483,7 @@ impl Generator {
                             else_branch,
                         } => {
                             let mut reg_acc = RegAcc::new();
-                            let exp_val = self.eval(exp, &mut reg_acc, &mut ObjAcc::new());
+                            let exp_val = self.eval(exp, &mut reg_acc, &mut ObjAcc::new())?;
                             if exp_val.data_type != DataType::Int {
                                 panic!();
                             }
@@ -439,7 +505,7 @@ impl Generator {
                                     // if branch
                                     self.work_with_next_mcfunction(label_if_branch);
                                     self.variable_table.enter_scope();
-                                    self.generate_from_block(if_branch);
+                                    self.generate_from_block(if_branch, expected_return_type)?;
                                     self.variable_table.leave_scope();
                                     self.working_mcfunction().append_command(&format!(
                                         "function {}:{} with storage memory:temp",
@@ -449,7 +515,10 @@ impl Generator {
                                     // else branch
                                     self.work_with_next_mcfunction(label_else_branch);
                                     self.variable_table.enter_scope();
-                                    self.generate_from_block(&mut else_branch.clone());
+                                    self.generate_from_block(
+                                        &mut else_branch.clone(),
+                                        expected_return_type,
+                                    )?;
                                     self.variable_table.leave_scope();
                                     self.working_mcfunction().append_command(&format!(
                                         "function {}:{} with storage memory:temp",
@@ -471,7 +540,7 @@ impl Generator {
                                     // if branch
                                     self.work_with_next_mcfunction(label_if_branch);
                                     self.variable_table.enter_scope();
-                                    self.generate_from_block(if_branch);
+                                    self.generate_from_block(if_branch, expected_return_type)?;
                                     self.variable_table.leave_scope();
                                     self.working_mcfunction().append_command(&format!(
                                         "function {}:{} with storage memory:temp",
@@ -503,7 +572,7 @@ impl Generator {
                             // judge
                             self.work_with_next_mcfunction(label_judge);
                             let mut reg_acc = RegAcc::new();
-                            let exp_val = self.eval(exp, &mut reg_acc, &mut ObjAcc::new());
+                            let exp_val = self.eval(exp, &mut reg_acc, &mut ObjAcc::new())?;
                             if exp_val.data_type != DataType::Int {
                                 panic!();
                             }
@@ -518,7 +587,7 @@ impl Generator {
                             // while body
                             self.work_with_next_mcfunction(label_while_body);
                             self.variable_table.enter_scope();
-                            self.generate_from_block(body);
+                            self.generate_from_block(body, expected_return_type)?;
                             self.variable_table.leave_scope();
                             self.working_mcfunction().append_commands(vec![
                                 "",
@@ -533,7 +602,7 @@ impl Generator {
                             self.work_with_next_mcfunction(label_following);
                         }
                         Stmt::Exp(exp) => {
-                            self.eval(exp, &mut RegAcc::new(), &mut ObjAcc::new());
+                            self.eval(exp, &mut RegAcc::new(), &mut ObjAcc::new())?;
                         }
                         Stmt::Break => {
                             let break_label = self.break_labels.last().unwrap().clone();
@@ -554,7 +623,7 @@ impl Generator {
                         Stmt::InlineCommand { fmt_str, arguments } => {
                             for (i, arg) in arguments.iter_mut().enumerate() {
                                 let exp_val =
-                                    self.eval(arg, &mut RegAcc::new(), &mut ObjAcc::new());
+                                    self.eval(arg, &mut RegAcc::new(), &mut ObjAcc::new())?;
                                 self.mov(
                                     &Location::Memory(
                                         "memory:temp".into(),
@@ -585,6 +654,7 @@ impl Generator {
                 }
             }
         }
+        Ok(())
     }
 
     fn get_element(
@@ -593,13 +663,13 @@ impl Generator {
         subscript: &mut Exp,
         reg_acc: &mut RegAcc,
         obj_acc: &mut ObjAcc,
-    ) -> ExpVal {
-        let subscript_val = self.eval(subscript, reg_acc, obj_acc);
+    ) -> Result<ExpVal, SemanticError> {
+        let subscript_val = self.eval(subscript, reg_acc, obj_acc)?;
         if subscript_val.data_type != DataType::Int {
             panic!();
         }
 
-        let arr_val = self.eval(array, reg_acc, obj_acc);
+        let arr_val = self.eval(array, reg_acc, obj_acc)?;
         if let DataType::Array { element_type } = arr_val.data_type {
             self.mov(
                 &Location::Memory("memory:temp".into(), "subscript".into()),
@@ -627,46 +697,51 @@ impl Generator {
                 &element_location,
                 &Location::Memory("memory:temp".into(), "element_path".into()),
             );
-            ExpVal {
+            Ok(ExpVal {
                 data_type: *element_type,
                 location: Location::memory_ref(element_location),
-            }
+            })
         } else {
             panic!()
         }
     }
 
-    fn eval(&mut self, exp: &mut Exp, reg_acc: &mut RegAcc, obj_acc: &mut ObjAcc) -> ExpVal {
+    fn eval(
+        &mut self,
+        exp: &mut Exp,
+        reg_acc: &mut RegAcc,
+        obj_acc: &mut ObjAcc,
+    ) -> Result<ExpVal, SemanticError> {
         match exp {
             Exp::Number(num) => {
                 let reg_res = reg_acc.new_reg();
                 self.mov_immediate(&reg_res, &num.to_string(), obj_acc);
-                ExpVal {
+                Ok(ExpVal {
                     data_type: DataType::Int,
                     location: reg_res,
-                }
+                })
             }
             Exp::Variable { ident, namespace } => {
                 let variable = self.variable_table.query_variable(
                     ident,
-                    namespace,
+                    &namespace.as_ref().map(|n| n.string.to_owned()),
                     self.working_namespace_name(),
-                );
-                ExpVal {
+                )?;
+                Ok(ExpVal {
                     data_type: variable.data_type.clone(),
                     location: variable.memory_location(),
-                }
+                })
             }
             Exp::UnaryExp(op, exp) => {
-                let exp_val = self.eval(exp, reg_acc, obj_acc);
+                let exp_val = self.eval(exp, reg_acc, obj_acc)?;
                 if let DataType::Int = exp_val.data_type {
                     let reg_exp = reg_acc.new_reg();
                     self.mov(&reg_exp, &exp_val.location);
                     match op {
-                        UnaryOp::Positive => ExpVal {
+                        UnaryOp::Positive => Ok(ExpVal {
                             data_type: DataType::Int,
                             location: reg_exp,
-                        },
+                        }),
                         UnaryOp::Negative => {
                             let reg_res = reg_acc.new_reg();
                             self.mov_immediate(&reg_res, "0", obj_acc);
@@ -674,10 +749,10 @@ impl Generator {
                                 "scoreboard players operation {} registers -= {} registers",
                                 reg_res, reg_exp
                             ));
-                            ExpVal {
+                            Ok(ExpVal {
                                 data_type: DataType::Int,
                                 location: reg_res,
-                            }
+                            })
                         }
                     }
                 } else {
@@ -698,8 +773,8 @@ impl Generator {
                     BinaryOp::Eq => ("=", true, false),
                     BinaryOp::Ne => ("=", true, true),
                 };
-                let lhs_val = self.eval(lhs, reg_acc, obj_acc);
-                let rhs_val = self.eval(rhs, reg_acc, obj_acc);
+                let lhs_val = self.eval(lhs, reg_acc, obj_acc)?;
+                let rhs_val = self.eval(rhs, reg_acc, obj_acc)?;
 
                 if let DataType::Int = lhs_val.data_type {
                     if let DataType::Int = rhs_val.data_type {
@@ -731,10 +806,10 @@ impl Generator {
                                 );
                             }
                         }
-                        return ExpVal {
+                        return Ok(ExpVal {
                             data_type: DataType::Int,
                             location: reg_res,
-                        };
+                        });
                     }
                 }
                 panic!();
@@ -745,13 +820,13 @@ impl Generator {
                 arguments,
             } => {
                 let namespace = match namespace {
-                    Some(namespace) => namespace.clone(),
+                    Some(namespace) => namespace.string.to_owned(),
                     None => self.working_namespace_name().to_owned(),
                 };
 
                 let func_def = self
                     .function_table
-                    .query_function((&namespace, func_ident))
+                    .query_function(&namespace, func_ident)?
                     .clone();
 
                 // save registers
@@ -767,13 +842,13 @@ impl Generator {
                 // calculate arguments
                 let mut reg_acc_1 = RegAcc::new(); // We just saved the using registers, so here we can restart the register counting.
                 for (i, arg) in arguments.iter_mut().enumerate() {
-                    let exp_val = self.eval(arg, &mut reg_acc_1, obj_acc);
+                    let exp_val = self.eval(arg, &mut reg_acc_1, obj_acc)?;
                     self.mov(&Location::argument(i as u32), &exp_val.location);
                 }
                 // call function
                 self.working_mcfunction().append_command(&format!(
                     "function {}:{} with storage memory:temp",
-                    namespace, func_ident
+                    namespace, func_ident.string
                 ));
                 // restore registers
                 for i in 0..reg_acc.cnt {
@@ -792,25 +867,25 @@ impl Generator {
                         DataType::Int => {
                             let reg_res = reg_acc.new_reg();
                             self.mov(&reg_res, &Location::return_value());
-                            ExpVal {
+                            Ok(ExpVal {
                                 data_type: data_type.clone(),
                                 location: reg_res,
-                            }
+                            })
                         }
                         DataType::Array { element_type: _ } => {
                             let obj_res = obj_acc.new_obj();
                             self.mov(&obj_res, &Location::return_value());
-                            ExpVal {
+                            Ok(ExpVal {
                                 data_type: data_type.clone(),
                                 location: obj_res,
-                            }
+                            })
                         }
                     }
                 } else {
-                    ExpVal {
+                    Ok(ExpVal {
                         data_type: DataType::Int,
                         location: Location::return_value(),
-                    }
+                    })
                 }
             }
             Exp::NewArray { length, element } => {
@@ -822,8 +897,8 @@ impl Generator {
 
                 let namespace = self.working_namespace_name().to_owned();
 
-                let length_val = self.eval(length, reg_acc, obj_acc);
-                let element_val = self.eval(element, reg_acc, obj_acc);
+                let length_val = self.eval(length, reg_acc, obj_acc)?;
+                let element_val = self.eval(element, reg_acc, obj_acc)?;
 
                 if length_val.data_type != DataType::Int {
                     panic!();
@@ -868,12 +943,12 @@ impl Generator {
                 ]);
                 // following
                 self.work_with_next_mcfunction(label_following);
-                ExpVal {
+                Ok(ExpVal {
                     data_type: DataType::Array {
                         element_type: Box::new(element_val.data_type),
                     },
                     location: arr,
-                }
+                })
             }
             Exp::ArrayElement { array, subscript } => {
                 self.get_element(array, subscript, reg_acc, obj_acc)
@@ -886,17 +961,17 @@ impl Generator {
                 self.mov_immediate(&arr, "[]", obj_acc);
 
                 if elements.is_empty() {
-                    return ExpVal {
+                    return Ok(ExpVal {
                         data_type: DataType::Array {
                             element_type: Box::new(element_type.as_ref().unwrap().clone()),
                         },
                         location: arr,
-                    };
+                    });
                 }
 
                 let mut iter = elements.iter_mut();
                 let first = iter.next().unwrap();
-                let first_val = self.eval(first, reg_acc, obj_acc);
+                let first_val = self.eval(first, reg_acc, obj_acc)?;
                 let first_element_type = &first_val.data_type;
                 if element_type.is_some() && element_type.as_ref().unwrap() != first_element_type {
                     panic!();
@@ -912,7 +987,7 @@ impl Generator {
                 ));
 
                 for element in iter {
-                    let element_val = self.eval(element, reg_acc, obj_acc);
+                    let element_val = self.eval(element, reg_acc, obj_acc)?;
                     if &element_val.data_type != first_element_type {
                         panic!();
                     }
@@ -926,12 +1001,12 @@ impl Generator {
                     ));
                 }
 
-                ExpVal {
+                Ok(ExpVal {
                     data_type: DataType::Array {
                         element_type: Box::new(first_element_type.clone()),
                     },
                     location: arr,
-                }
+                })
             }
         }
     }

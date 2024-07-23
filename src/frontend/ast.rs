@@ -2,6 +2,12 @@ use exp::Exp;
 
 pub mod exp;
 
+#[derive(Debug, Clone)]
+pub struct SrcLocation {
+    pub begin: usize,
+    pub end: usize,
+}
+
 #[derive(Debug)]
 pub struct CompileUnit {
     pub global_defs: Vec<GlobalDef>,
@@ -11,7 +17,7 @@ pub struct CompileUnit {
 pub enum GlobalDef {
     FuncDef(FuncDef),
     VariableDef {
-        ident: String,
+        ident: Ident,
         init_value: Box<Exp>,
         data_type: DataType,
     },
@@ -19,7 +25,7 @@ pub enum GlobalDef {
 
 #[derive(Debug, Clone)]
 pub struct FuncDef {
-    pub ident: String,
+    pub ident: Ident,
     pub params: Vec<FuncParam>,
     pub block: Block,
     pub func_type: Option<DataType>,
@@ -27,8 +33,14 @@ pub struct FuncDef {
 
 #[derive(Debug, Clone)]
 pub struct FuncParam {
-    pub ident: String,
+    pub ident: Ident,
     pub data_type: DataType,
+}
+
+#[derive(Debug, Clone)]
+pub struct Ident {
+    pub string: String,
+    pub src_loc: SrcLocation,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -48,7 +60,7 @@ pub enum BlockItem {
 
 #[derive(Debug, Clone)]
 pub struct Decl {
-    pub ident: String,
+    pub ident: Ident,
     pub init_value: Box<Exp>,
 }
 
