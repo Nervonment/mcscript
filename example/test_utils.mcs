@@ -78,3 +78,179 @@ fn f8() -> int {
         return 0;
     }
 }
+
+fn bubble_sort(arr: Array<int>, n: int) -> Array<int> {
+    let i = 0;
+    while i < n - 1 {
+        let j = 0;
+        while j < n - i - 1 {
+            if arr[j] > arr[j + 1] {
+                let tmp = arr[j + 1];
+                arr[j + 1] = arr[j];
+                arr[j] = tmp;
+            }
+            j += 1;
+        }
+        i += 1;
+    }
+    return arr;
+}
+
+fn insert_sort(arr: Array<int>, n: int) -> Array<int> {
+    let i = 1;
+    while i < n {
+        let tmp = arr[i];
+        let j = i - 1;
+        while j > -1 && tmp < arr[j] {
+            arr[j + 1] = arr[j];
+            j -= 1;
+        }
+        arr[j + 1] = tmp;
+        i += 1;
+    }
+    return arr;
+}
+
+fn quick_sort(arr: Array<int>, begin: int, end: int) -> Array<int> {
+    if begin >= end {
+        return arr;
+    }
+    let i = begin;
+    let j = end;
+    let tmp = arr[begin];
+    while i < j {
+        while i < j && arr[j] > tmp - 1 {
+            j -= 1;
+        }
+        if i < j {
+            arr[i] = arr[j];
+            i += 1;
+        }
+        while i < j && arr[i] < tmp {
+            i += 1;
+        }
+        if i < j {
+            arr[j] = arr[i];
+            j -= 1;
+        }
+    }
+    arr[i] = tmp;
+    arr = quick_sort(arr, begin, i - 1);
+    arr = quick_sort(arr, i + 1, end);
+    return arr;
+}
+
+fn select_sort(arr: Array<int>, n: int) -> Array<int> {
+    let i = 0;
+    while i < n - 1 {
+        let min = i;
+        let j = i + 1;
+        while j < n {
+            if arr[min] > arr[j] {
+                min = j;
+            }
+            j += 1;
+        }
+        let tmp = arr[min];
+        arr[min] = arr[i];
+        arr[i] = tmp;
+        i += 1;
+    }
+    return arr;
+}
+
+fn make_heap(arr: Array<int>, begin: int, end: int) -> Array<int> {
+    let p = begin;
+    let c = p * 2 + 1;
+    while c < end + 1 {
+        if c < end && arr[c] < arr[c + 1] {
+            c += 1;
+        }
+        if arr[p] > arr[c] {
+            return arr;
+        } else {
+            let tmp = arr[p];
+            arr[p] = arr[c];
+            arr[c] = tmp;
+            p = c;
+            c = p * 2 + 1;
+        }
+    }
+    return arr;
+}
+
+fn heap_sort(arr: Array<int>, n: int) -> Array<int> {
+    let i = n / 2 - 1;
+    while i > -1 {
+        arr = make_heap(arr, i, n - 1);
+        i -= 1;
+    }
+    i = n - 1;
+    while i > 0 {
+        let tmp = arr[0];
+        arr[0] = arr[i];
+        arr[i] = tmp;
+        arr = make_heap(arr, 0, i - 1);
+        i -= 1;
+    }
+    return arr;
+}
+
+// assuming all the numbers in `arr` are in range [0, 10)
+fn counting_sort(arr: Array<int>, n: int) -> Array<int> {
+    let cnt_arr = [0; 10];
+    let sorted_arr = [0; n];
+    let i = 0;
+    while i < n {
+        cnt_arr[arr[i]] += 1;
+        i += 1;
+    }
+    let k = 1;
+    while k < 10 {
+        cnt_arr[k] += cnt_arr[k - 1];
+        k += 1;
+    }
+    let j = n;
+    while j > 0 {
+        cnt_arr[arr[j - 1]] -= 1;
+        sorted_arr[cnt_arr[arr[j - 1]]] = arr[j - 1];
+        j -= 1;
+    }
+    return sorted_arr;
+}
+
+fn merge_sort(arr: Array<int>, l: int, r: int) -> Array<int> {
+    if l > r {
+        return arr;
+    }
+
+    let mid = (l + r) / 2;
+    arr = merge_sort(l, mid);
+    arr = merge_sort(mid, r);
+
+    let i = l;
+    let j = mid;
+    let k = l;
+    let tmp_arr = arr;
+    while i < mid && j < r {
+        if arr[i] < arr[j] {
+            tmp_arr[k] = arr[i];
+            i += 1;
+        } else {
+            tmp_arr[k] = arr[j];
+            j += 1;
+        }
+        k += 1;
+    }
+    while i < mid {
+        tmp_arr[k] = arr[i];
+        i += 1;
+        k += 1;
+    }
+    while j < r {
+        tmp_arr[k] = arr[j];
+        j += 1;
+        k += 1;
+    }
+    return tmp_arr
+}
