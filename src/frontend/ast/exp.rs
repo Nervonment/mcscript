@@ -1,7 +1,13 @@
-use super::{DataType, Ident};
+use super::{DataType, Ident, SrcLocation};
 
 #[derive(Debug, Clone)]
-pub enum Exp {
+pub struct Exp {
+    pub exp_type: ExpType,
+    pub src_loc: SrcLocation,
+}
+
+#[derive(Debug, Clone)]
+pub enum ExpType {
     UnaryExp(UnaryOp, Box<Exp>),
     BinaryExp(BinaryOp, Box<Exp>, Box<Exp>),
     Number(i32),

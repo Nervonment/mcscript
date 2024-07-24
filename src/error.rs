@@ -153,12 +153,12 @@ pub fn handle_parse_error(
 }
 
 pub fn handle_semantic_error(file_path: &Path, content: &str, err: &SemanticError) -> Result<()> {
-    let content = Split::new(content);
+    let content_split = Split::new(content);
     match err {
         SemanticError::MultipleDefinition { ident, begin, end } => {
             show_error_message(
                 file_path,
-                &content,
+                &content_split,
                 *begin,
                 *end,
                 &format!("\"{}\" is defined multiple times", ident),
@@ -167,13 +167,94 @@ pub fn handle_semantic_error(file_path: &Path, content: &str, err: &SemanticErro
         SemanticError::UndefinedIdentifier { ident, begin, end } => {
             show_error_message(
                 file_path,
-                &content,
+                &content_split,
                 *begin,
                 *end,
                 &format!("\"{}\" is not defined", ident),
             )?;
         }
-        _ => unreachable!(),
+        SemanticError::TypeMismatch {
+            expected_type,
+            found_type: given_type,
+            begin,
+            end,
+        } => {
+            show_error_message(
+                file_path,
+                &content_split,
+                *begin,
+                *end,
+                &format!(
+                    "expected \"{}\" here, found \"{}\" which is of type \"{}\"",
+                    expected_type,
+                    &content[*begin..*end],
+                    given_type
+                ),
+            )?;
+        }
+        SemanticError::ExpectedVoid {
+            found_type,
+            begin,
+            end,
+        } => {
+            show_error_message(
+                file_path,
+                &content_split,
+                *begin,
+                *end,
+                &format!(
+                    "this is a void function and should not return a value of type \"{}\"",
+                    found_type
+                ),
+            )?;
+        }
+        SemanticError::ExpectedValue {
+            expected_type,
+            begin,
+            end,
+        } => {
+            show_error_message(
+                file_path,
+                &content_split,
+                *begin,
+                *end,
+                &format!(
+                    "this is a non-void function and should return a value of type \"{}\"",
+                    expected_type
+                ),
+            )?;
+        }
+        SemanticError::IndexIntoNonArray {
+            found_type,
+            begin,
+            end,
+        } => {
+            show_error_message(
+                file_path,
+                &content_split,
+                *begin,
+                *end,
+                &format!("cannot index into a value of type \"{}\"", found_type),
+            )?;
+        }
+        SemanticError::NoLoopToBreak { begin, end } => {
+            show_error_message(
+                file_path,
+                &content_split,
+                *begin,
+                *end,
+                "there is no loop to break",
+            )?;
+        }
+        SemanticError::NoLoopToContinue { begin, end } => {
+            show_error_message(
+                file_path,
+                &content_split,
+                *begin,
+                *end,
+                "there is no loop to continue",
+            )?;
+        }
     }
     Ok(())
 }

@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use exp::Exp;
 
 pub mod exp;
@@ -49,6 +51,17 @@ pub enum DataType {
     Array { element_type: Box<DataType> },
 }
 
+impl Display for DataType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DataType::Int => write!(f, "int"),
+            DataType::Array { element_type } => {
+                write!(f, "Array<{}>", element_type)
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Block(pub Vec<BlockItem>);
 
@@ -67,6 +80,7 @@ pub struct Decl {
 #[derive(Debug, Clone)]
 pub enum Stmt {
     Return {
+        src_loc: SrcLocation,
         return_value: Option<Box<Exp>>,
     },
     Assign {
@@ -83,8 +97,12 @@ pub enum Stmt {
         exp: Box<Exp>,
         body: Block,
     },
-    Break,
-    Continue,
+    Break {
+        src_loc: SrcLocation,
+    },
+    Continue {
+        src_loc: SrcLocation,
+    },
     Exp(Box<Exp>),
     InlineCommand {
         fmt_str: String,

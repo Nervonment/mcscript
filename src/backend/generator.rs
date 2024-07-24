@@ -3,8 +3,9 @@ use std::{collections::HashMap, fmt::Display};
 use crate::{
     backend::datapack::{Datapack, Mcfunction, Namespace},
     frontend::ast::{
-        exp::{BinaryOp, Exp, UnaryOp},
-        Block, BlockItem, CompileUnit, DataType, FuncDef, FuncParam, GlobalDef, Ident, Stmt,
+        exp::{BinaryOp, Exp, ExpType, UnaryOp},
+        Block, BlockItem, CompileUnit, DataType, FuncDef, FuncParam, GlobalDef, Ident, SrcLocation,
+        Stmt,
     },
 };
 
@@ -225,7 +226,7 @@ impl Location {
         if let Location::Memory(naid, path) = ref_location {
             Self::MemoryRef(naid, path)
         } else {
-            panic!()
+            unreachable!()
         }
     }
 }
@@ -369,7 +370,12 @@ impl Generator {
                     )?;
                     let exp_val = self.eval(init_value, &mut RegAcc::new(), &mut ObjAcc::new())?;
                     if &exp_val.data_type != data_type {
-                        panic!();
+                        return Err(SemanticError::TypeMismatch {
+                            expected_type: data_type.clone(),
+                            found_type: exp_val.data_type.clone(),
+                            begin: init_value.src_loc.begin,
+                            end: init_value.src_loc.end,
+                        });
                     }
                     self.mov(&variable.memory_location(), &exp_val.location);
                 }
@@ -441,7 +447,10 @@ impl Generator {
                 }
                 BlockItem::Stmt(stmt) => {
                     match stmt {
-                        Stmt::Return { return_value } => {
+                        Stmt::Return {
+                            return_value,
+                            src_loc,
+                        } => {
                             if return_value.is_some() {
                                 let return_value = return_value.as_mut().unwrap();
                                 let exp_val = self.eval(
@@ -449,14 +458,36 @@ impl Generator {
                                     &mut RegAcc::new(),
                                     &mut ObjAcc::new(),
                                 )?;
+                                if expected_return_type.is_none() {
+                                    return Err(SemanticError::ExpectedVoid {
+                                        found_type: exp_val.data_type.clone(),
+                                        begin: return_value.src_loc.begin,
+                                        end: return_value.src_loc.end,
+                                    });
+                                }
                                 if &exp_val.data_type != expected_return_type.as_ref().unwrap() {
-                                    panic!();
+                                    return Err(SemanticError::TypeMismatch {
+                                        expected_type: expected_return_type
+                                            .as_ref()
+                                            .unwrap()
+                                            .clone(),
+                                        found_type: exp_val.data_type.clone(),
+                                        begin: return_value.src_loc.begin,
+                                        end: return_value.src_loc.end,
+                                    });
                                 }
                                 self.mov(&Location::return_value(), &exp_val.location);
                                 self.working_mcfunction().append_command("return 0");
                             } else {
                                 if expected_return_type.is_some() {
-                                    panic!();
+                                    return Err(SemanticError::ExpectedValue {
+                                        expected_type: expected_return_type
+                                            .as_ref()
+                                            .unwrap()
+                                            .clone(),
+                                        begin: src_loc.begin,
+                                        end: src_loc.end,
+                                    });
                                 } else {
                                     self.working_mcfunction().append_command("return 0");
                                 }
@@ -468,7 +499,12 @@ impl Generator {
                             let rhs_val = self.eval(new_value, &mut reg_acc, &mut obj_acc)?;
                             let lhs_val = self.eval(lhs, &mut reg_acc, &mut obj_acc)?;
                             if lhs_val.data_type != rhs_val.data_type {
-                                panic!();
+                                return Err(SemanticError::TypeMismatch {
+                                    expected_type: lhs_val.data_type,
+                                    found_type: rhs_val.data_type,
+                                    begin: new_value.src_loc.begin,
+                                    end: new_value.src_loc.end,
+                                });
                             }
                             self.mov(&lhs_val.location, &rhs_val.location);
                         }
@@ -485,7 +521,12 @@ impl Generator {
                             let mut reg_acc = RegAcc::new();
                             let exp_val = self.eval(exp, &mut reg_acc, &mut ObjAcc::new())?;
                             if exp_val.data_type != DataType::Int {
-                                panic!();
+                                return Err(SemanticError::TypeMismatch {
+                                    expected_type: DataType::Int,
+                                    found_type: exp_val.data_type,
+                                    begin: exp.src_loc.begin,
+                                    end: exp.src_loc.end,
+                                });
                             }
                             let reg = self.to_reg_readonly(&exp_val.location, &mut reg_acc);
 
@@ -574,7 +615,12 @@ impl Generator {
                             let mut reg_acc = RegAcc::new();
                             let exp_val = self.eval(exp, &mut reg_acc, &mut ObjAcc::new())?;
                             if exp_val.data_type != DataType::Int {
-                                panic!();
+                                return Err(SemanticError::TypeMismatch {
+                                    expected_type: DataType::Int,
+                                    found_type: exp_val.data_type,
+                                    begin: exp.src_loc.begin,
+                                    end: exp.src_loc.end,
+                                });
                             }
                             let reg = self.to_reg_readonly(&exp_val.location, &mut reg_acc);
                             self.working_mcfunction().append_commands(vec![
@@ -604,7 +650,15 @@ impl Generator {
                         Stmt::Exp(exp) => {
                             self.eval(exp, &mut RegAcc::new(), &mut ObjAcc::new())?;
                         }
-                        Stmt::Break => {
+                        Stmt::Break {
+                            src_loc: SrcLocation { begin, end },
+                        } => {
+                            if self.break_labels.is_empty() {
+                                return Err(SemanticError::NoLoopToBreak {
+                                    begin: *begin,
+                                    end: *end,
+                                });
+                            }
                             let break_label = self.break_labels.last().unwrap().clone();
                             let namespace = self.working_namespace_name().to_owned();
                             self.working_mcfunction().append_command(&format!(
@@ -612,7 +666,15 @@ impl Generator {
                                 namespace, break_label
                             ));
                         }
-                        Stmt::Continue => {
+                        Stmt::Continue {
+                            src_loc: SrcLocation { begin, end },
+                        } => {
+                            if self.continue_labels.is_empty() {
+                                return Err(SemanticError::NoLoopToContinue {
+                                    begin: *begin,
+                                    end: *end,
+                                });
+                            }
                             let continue_label = self.continue_labels.last().unwrap().clone();
                             let namespace = self.working_namespace_name().to_owned();
                             self.working_mcfunction().append_command(&format!(
@@ -666,7 +728,12 @@ impl Generator {
     ) -> Result<ExpVal, SemanticError> {
         let subscript_val = self.eval(subscript, reg_acc, obj_acc)?;
         if subscript_val.data_type != DataType::Int {
-            panic!();
+            return Err(SemanticError::TypeMismatch {
+                expected_type: DataType::Int,
+                found_type: subscript_val.data_type,
+                begin: subscript.src_loc.begin,
+                end: subscript.src_loc.end,
+            });
         }
 
         let arr_val = self.eval(array, reg_acc, obj_acc)?;
@@ -702,7 +769,11 @@ impl Generator {
                 location: Location::memory_ref(element_location),
             })
         } else {
-            panic!()
+            return Err(SemanticError::IndexIntoNonArray {
+                found_type: arr_val.data_type,
+                begin: array.src_loc.begin,
+                end: array.src_loc.end,
+            });
         }
     }
 
@@ -712,8 +783,8 @@ impl Generator {
         reg_acc: &mut RegAcc,
         obj_acc: &mut ObjAcc,
     ) -> Result<ExpVal, SemanticError> {
-        match exp {
-            Exp::Number(num) => {
+        match &mut exp.exp_type {
+            ExpType::Number(num) => {
                 let reg_res = reg_acc.new_reg();
                 self.mov_immediate(&reg_res, &num.to_string(), obj_acc);
                 Ok(ExpVal {
@@ -721,7 +792,7 @@ impl Generator {
                     location: reg_res,
                 })
             }
-            Exp::Variable { ident, namespace } => {
+            ExpType::Variable { ident, namespace } => {
                 let variable = self.variable_table.query_variable(
                     ident,
                     &namespace.as_ref().map(|n| n.string.to_owned()),
@@ -732,7 +803,7 @@ impl Generator {
                     location: variable.memory_location(),
                 })
             }
-            Exp::UnaryExp(op, exp) => {
+            ExpType::UnaryExp(op, exp) => {
                 let exp_val = self.eval(exp, reg_acc, obj_acc)?;
                 if let DataType::Int = exp_val.data_type {
                     let reg_exp = reg_acc.new_reg();
@@ -756,10 +827,15 @@ impl Generator {
                         }
                     }
                 } else {
-                    panic!();
+                    return Err(SemanticError::TypeMismatch {
+                        expected_type: DataType::Int,
+                        found_type: exp_val.data_type,
+                        begin: exp.src_loc.begin,
+                        end: exp.src_loc.end,
+                    });
                 }
             }
-            Exp::BinaryExp(op, lhs, rhs) => {
+            ExpType::BinaryExp(op, lhs, rhs) => {
                 let lhs_val = self.eval(lhs, reg_acc, obj_acc)?;
                 let rhs_val = self.eval(rhs, reg_acc, obj_acc)?;
                 if let DataType::Int = lhs_val.data_type {
@@ -838,11 +914,24 @@ impl Generator {
                                 location: reg_res,
                             });
                         }
+                    } else {
+                        return Err(SemanticError::TypeMismatch {
+                            expected_type: DataType::Int,
+                            found_type: rhs_val.data_type,
+                            begin: rhs.src_loc.begin,
+                            end: rhs.src_loc.end,
+                        });
                     }
+                } else {
+                    return Err(SemanticError::TypeMismatch {
+                        expected_type: DataType::Int,
+                        found_type: lhs_val.data_type,
+                        begin: lhs.src_loc.begin,
+                        end: lhs.src_loc.end,
+                    });
                 }
-                panic!();
             }
-            Exp::FuncCall {
+            ExpType::FuncCall {
                 namespace,
                 func_ident,
                 arguments,
@@ -916,7 +1005,7 @@ impl Generator {
                     })
                 }
             }
-            Exp::NewArray { length, element } => {
+            ExpType::NewArray { length, element } => {
                 let label_judge = self.new_label();
                 let label_while_body = self.new_label();
                 let label_following = self.new_label();
@@ -929,7 +1018,12 @@ impl Generator {
                 let element_val = self.eval(element, reg_acc, obj_acc)?;
 
                 if length_val.data_type != DataType::Int {
-                    panic!();
+                    return Err(SemanticError::TypeMismatch {
+                        expected_type: DataType::Int,
+                        found_type: length_val.data_type,
+                        begin: length.src_loc.begin,
+                        end: length.src_loc.end,
+                    });
                 }
 
                 let reg_len = self.to_reg_readonly(&length_val.location, reg_acc);
@@ -944,7 +1038,7 @@ impl Generator {
                 ));
                 // judge
                 self.work_with_next_mcfunction(label_judge);
-                self.working_mcfunction.as_mut().unwrap().append_commands(vec![
+                self.working_mcfunction().append_commands(vec![
                     &format!(
                         "execute if score {} registers >= {} registers run return run function {}:{} with storage memory:temp", 
                         reg_current_len, reg_len, namespace, label_following.name()
@@ -978,10 +1072,10 @@ impl Generator {
                     location: arr,
                 })
             }
-            Exp::ArrayElement { array, subscript } => {
+            ExpType::ArrayElement { array, subscript } => {
                 self.get_element(array, subscript, reg_acc, obj_acc)
             }
-            Exp::SquareBracketsArray {
+            ExpType::SquareBracketsArray {
                 element_type,
                 elements,
             } => {
@@ -1002,7 +1096,12 @@ impl Generator {
                 let first_val = self.eval(first, reg_acc, obj_acc)?;
                 let first_element_type = &first_val.data_type;
                 if element_type.is_some() && element_type.as_ref().unwrap() != first_element_type {
-                    panic!();
+                    return Err(SemanticError::TypeMismatch {
+                        expected_type: element_type.as_ref().unwrap().clone(),
+                        found_type: first_element_type.clone(),
+                        begin: first.src_loc.begin,
+                        end: first.src_loc.end,
+                    });
                 }
 
                 self.mov(
@@ -1017,7 +1116,12 @@ impl Generator {
                 for element in iter {
                     let element_val = self.eval(element, reg_acc, obj_acc)?;
                     if &element_val.data_type != first_element_type {
-                        panic!();
+                        return Err(SemanticError::TypeMismatch {
+                            expected_type: first_element_type.clone(),
+                            found_type: element_val.data_type,
+                            begin: element.src_loc.begin,
+                            end: element.src_loc.end,
+                        });
                     }
                     self.mov(
                         &Location::Memory("memory:temp".into(), "element".into()),

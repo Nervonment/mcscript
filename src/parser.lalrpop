@@ -1,7 +1,7 @@
 use crate::frontend::{
     ast::{
         CompileUnit, GlobalDef, FuncDef, Block, BlockItem, Stmt, Decl, FuncParam, DataType, Ident, SrcLocation, 
-        exp::{ Exp, UnaryOp, BinaryOp },
+        exp::{ Exp, ExpType, UnaryOp, BinaryOp },
     },
     lexer::apply_string_escapes,
 };
@@ -65,13 +65,13 @@ Stmt: Stmt = {
     IfElseStmt,
     WhileStmt,
     InlineCommandStmt, 
-    "break" ";" => Stmt::Break,
-    "continue" ";" => Stmt::Continue,
+    <begin: @L> "break" <end: @R> ";" => Stmt::Break { src_loc: SrcLocation { <> } },
+    <begin: @L> "continue" <end: @R> ";" => Stmt::Continue { src_loc: SrcLocation { <> } },
     <Exp> ";" => Stmt::Exp(<>),
 }
 
 ReturnStmt: Stmt = {
-    "return" <return_value: Exp?> ";" => Stmt::Return { <> }
+    "return" <begin: @L> <return_value: Exp?> ";" <end: @R> => Stmt::Return { return_value, src_loc: SrcLocation { begin, end } }
 }
 
 AssignStmt: Stmt = {
@@ -79,11 +79,11 @@ AssignStmt: Stmt = {
 }
 
 OpAssignStmt: Stmt = {
-    <lhs: Exp> "+=" <value: Exp> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Add, lhs, value)) },
-    <lhs: Exp> "-=" <value: Exp> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Sub, lhs, value)) },
-    <lhs: Exp> "*=" <value: Exp> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Mul, lhs, value)) },
-    <lhs: Exp> "/=" <value: Exp> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Div, lhs, value)) },
-    <lhs: Exp> "%=" <value: Exp> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp::BinaryExp(BinaryOp::Mod, lhs, value)) },
+    <lhs: Exp> "+=" <begin: @L> <value: Exp> <end: @R> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp { exp_type: ExpType::BinaryExp(BinaryOp::Add, lhs, value), src_loc: SrcLocation { begin, end } }) },
+    <lhs: Exp> "-=" <begin: @L> <value: Exp> <end: @R> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp { exp_type: ExpType::BinaryExp(BinaryOp::Sub, lhs, value), src_loc: SrcLocation { begin, end } }) },
+    <lhs: Exp> "*=" <begin: @L> <value: Exp> <end: @R> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp { exp_type: ExpType::BinaryExp(BinaryOp::Mul, lhs, value), src_loc: SrcLocation { begin, end } }) },
+    <lhs: Exp> "/=" <begin: @L> <value: Exp> <end: @R> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp { exp_type: ExpType::BinaryExp(BinaryOp::Div, lhs, value), src_loc: SrcLocation { begin, end } }) },
+    <lhs: Exp> "%=" <begin: @L> <value: Exp> <end: @R> ";" => Stmt::Assign { lhs: lhs.clone(), new_value: Box::new(Exp { exp_type: ExpType::BinaryExp(BinaryOp::Mod, lhs, value), src_loc: SrcLocation { begin, end } }) },
 }
 
 IfElseStmt: Stmt = {
@@ -115,14 +115,9 @@ IntConst: i32 = {
 Exp: Box<Exp> = LOrExp;
 
 PrimaryExp: Box<Exp> = {
-    Number => Box::new(Exp::Number(<>)),
+    <begin: @L> <num: Number> <end: @R> => Box::new(Exp { exp_type: ExpType::Number(num), src_loc: SrcLocation { begin, end } }),
     Variable,
-    <namespace: NamespacePrefix?> <func_ident: Ident> "(" <arg: Exp?> <mut args: ("," <Exp>)*> ")" => {
-        if arg.is_some() {
-            args.insert(0, arg.unwrap());
-        }
-        Box::new(Exp::FuncCall { namespace, func_ident, arguments: args })
-    },
+    FuncCall,
     NewArray,
     SquareBracketsArray, 
     ArrayElement,
@@ -130,29 +125,38 @@ PrimaryExp: Box<Exp> = {
 }
 
 Variable: Box<Exp> = {
-    <namespace: NamespacePrefix?> <ident: Ident> => Box::new(Exp::Variable { ident, namespace }),
+    <begin: @L> <namespace: NamespacePrefix?> <ident: Ident> <end: @R> => Box::new(Exp { exp_type: ExpType::Variable { ident, namespace }, src_loc: SrcLocation { begin, end } }),
+}
+
+FuncCall: Box<Exp> = {
+    <begin: @L> <namespace: NamespacePrefix?> <func_ident: Ident> "(" <arg: Exp?> <mut args: ("," <Exp>)*> ")" <end: @R> => {
+        if arg.is_some() {
+            args.insert(0, arg.unwrap());
+        }
+        Box::new(Exp { exp_type: ExpType::FuncCall { namespace, func_ident, arguments: args }, src_loc: SrcLocation { begin, end } })
+    },
 }
 
 NamespacePrefix: Ident = <Ident> "::";
 
 NewArray: Box<Exp> = {
-    "new" "Array" "(" <length: Exp> "," <element: Exp> ")" => Box::new(Exp::NewArray{ <> }),
-    "[" <element: Exp> ";" <length: Exp> "]"  => Box::new(Exp::NewArray{ <> }),
+    <begin: @L> "new" "Array" "(" <length: Exp> "," <element: Exp> ")" <end: @R> => Box::new(Exp { exp_type: ExpType::NewArray{ length, element }, src_loc: SrcLocation { begin, end } }),
+    <begin: @L> "[" <element: Exp> ";" <length: Exp> "]" <end: @R> => Box::new(Exp { exp_type: ExpType::NewArray{ length, element }, src_loc: SrcLocation { begin ,end } }),
 }
 
 SquareBracketsArray: Box<Exp> = {
-    <element_type: ArrayTypePrefix?> "[" <element: Exp?> <mut elements: ("," <Exp>)*> "]" => {
+    <begin: @L> <element_type: ArrayTypePrefix?> "[" <element: Exp?> <mut elements: ("," <Exp>)*> "]" <end: @R> => {
         if element.is_some() {
             elements.insert(0, element.unwrap());
         }
-        Box::new(Exp::SquareBracketsArray { elements, element_type })
+        Box::new(Exp { exp_type: ExpType::SquareBracketsArray { elements, element_type }, src_loc: SrcLocation { begin, end } })
     }
 }
 
 ArrayTypePrefix: DataType = "Array" "<" <DataType> ">";
 
 ArrayElement: Box<Exp> = {
-    <array: PrimaryExp>  <subscript: Subscript> => Box::new(Exp::ArrayElement{ array, subscript })
+    <begin: @L> <array: PrimaryExp>  <subscript: Subscript> <end: @R> => Box::new(Exp { exp_type: ExpType::ArrayElement{ array, subscript }, src_loc: SrcLocation { begin ,end } })
 }
 
 Subscript: Box<Exp> = {
@@ -160,8 +164,8 @@ Subscript: Box<Exp> = {
 }
 
 UnaryExp: Box<Exp> = {
-    <op: UnaryOp> <exp: UnaryExp> => {
-        Box::new(Exp::UnaryExp(op, exp))
+    <begin: @L> <op: UnaryOp> <exp: UnaryExp> <end: @R> => {
+        Box::new(Exp { exp_type: ExpType::UnaryExp(op, exp), src_loc: SrcLocation { begin, end } })
     },
     PrimaryExp,
 }
@@ -172,7 +176,7 @@ UnaryOp: UnaryOp = {
 }
 
 MulExp: Box<Exp> = {
-    <lhs: MulExp> <op: MulOp> <rhs: UnaryExp> => Box::new(Exp::BinaryExp(op, lhs, rhs)),
+    <begin: @L> <lhs: MulExp> <op: MulOp> <rhs: UnaryExp> <end: @R> => Box::new(Exp { exp_type: ExpType::BinaryExp(op, lhs, rhs), src_loc: SrcLocation { begin, end } }),
     UnaryExp,
 }
 
@@ -183,7 +187,7 @@ MulOp: BinaryOp = {
 }
 
 AddExp: Box<Exp> = {
-    <lhs: AddExp> <op: AddOp> <rhs: MulExp> => Box::new(Exp::BinaryExp(op, lhs, rhs)),
+    <begin: @L> <lhs: AddExp> <op: AddOp> <rhs: MulExp> <end: @R> => Box::new(Exp { exp_type: ExpType::BinaryExp(op, lhs, rhs), src_loc: SrcLocation { begin, end } }),
     MulExp,
 }
 
@@ -193,7 +197,7 @@ AddOp: BinaryOp = {
 }
 
 RelExp: Box<Exp> = {
-    <lhs: RelExp> <op: RelOp> <rhs: AddExp> => Box::new(Exp::BinaryExp(op, lhs, rhs)),
+    <begin: @L> <lhs: RelExp> <op: RelOp> <rhs: AddExp> <end: @R> => Box::new(Exp { exp_type: ExpType::BinaryExp(op, lhs, rhs), src_loc: SrcLocation { begin, end } }),
     AddExp,
 }
 
@@ -205,7 +209,7 @@ RelOp: BinaryOp = {
 }
 
 EqExp: Box<Exp> = {
-    <lhs: EqExp> <op: EqOp> <rhs: RelExp> => Box::new(Exp::BinaryExp(op, lhs, rhs)),
+    <begin: @L> <lhs: EqExp> <op: EqOp> <rhs: RelExp> <end: @R> => Box::new(Exp { exp_type: ExpType::BinaryExp(op, lhs, rhs), src_loc: SrcLocation { begin, end } }),
     RelExp,
 }
 
@@ -215,11 +219,11 @@ EqOp: BinaryOp = {
 }
 
 LAndExp: Box<Exp> = {
-    <lhs: LAndExp> "&&" <rhs: EqExp> => Box::new(Exp::BinaryExp(BinaryOp::LAnd, lhs, rhs)),
+    <begin: @L> <lhs: LAndExp> "&&" <rhs: EqExp> <end: @R> => Box::new(Exp { exp_type: ExpType::BinaryExp(BinaryOp::LAnd, lhs, rhs), src_loc: SrcLocation { begin, end } }),
     EqExp,
 }
 
 LOrExp: Box<Exp> = {
-    <lhs: LOrExp> "||" <rhs: LAndExp> => Box::new(Exp::BinaryExp(BinaryOp::LOr, lhs, rhs)),
+    <begin: @L> <lhs: LOrExp> "||" <rhs: LAndExp> <end: @R> => Box::new(Exp { exp_type: ExpType::BinaryExp(BinaryOp::LOr, lhs, rhs), src_loc: SrcLocation { begin, end } }),
     LAndExp,
 }
