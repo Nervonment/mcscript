@@ -6,7 +6,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use mcscript::{
+use mcsc::{
     backend::{datapack, generator::Generator},
     error::{handle_parse_error, handle_semantic_error},
     frontend::{self},

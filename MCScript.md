@@ -40,11 +40,11 @@ fn func(param1: int, param2: Array<int>) -> Array<Array<int>> {
 
 ```
 fn main() {
-    return 0;
+    return;
 }
 ```
 
-函数的返回值会保存在寄存器 `return_value` (整数)或者命令存储 `memory:temp return_object` (数组)中, 你可以通过命令 `/scoreboard players get return_value registers` 或 `/data get storage memory:temp return_object` 查看. 
+函数的返回值保存在命令存储 `memory:temp return_value` 中, 你可以通过命令 `/data get storage memory:temp return_value` 查看. 
 
 调用同一个文件(命名空间)内的函数时, 可以直接使用函数的名字; 调用其他文件(命名空间)内的函数时, 需要加上命名空间前缀: 
 
@@ -191,7 +191,7 @@ fn main() -> int {
 
 ### 内联命令
 
-MCScript 与 Minecraft 世界交互的方式是通过内联命令. 你可以在函数内通过 `run_command!` 运行一条游戏内命令: 
+MCScript 与 Minecraft 世界交互的方式是内联命令. 你可以在函数内通过 `run_command!` 运行一条游戏内命令: 
 
 ```
 fn hello_world() {
@@ -208,6 +208,8 @@ fn show_result() {
     run_command!("say {} + {} = {}", x, y, x + y);
 }
 ```
+
+请参阅 [Minecraft Wiki](https://zh.minecraft.wiki/w/%E5%91%BD%E4%BB%A4) 以了解 Minecraft 中的命令以及使用方法. 
 
 ### 全局变量
 
@@ -235,4 +237,4 @@ fn f1() {
 }
 ```
 
-在游戏内, 需要手动运行 `/function <namespace>:init` 来初始化命名空间 `<namespace>` 中声明的全局变量. 例如运行 `/function namespace1:init` 来初始化上面示例中的全局变量. 
+**注意**: 在游戏内, 需要手动运行 `/function <namespace>:init` 来初始化命名空间 `<namespace>` 中声明的全局变量. 例如运行 `/function namespace1:init` 来初始化上面示例中的全局变量. 

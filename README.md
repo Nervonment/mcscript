@@ -27,18 +27,21 @@ fn generate_column() {
 
 ![生成迷宫](pictures/2024-07-24_00.51.23.png)
 
-## 使用编译器
+## 使用方法
+
+详细使用说明参见[此处](usage.md). 
+
 MCScript 支持输出 Minecraft Java 版 1.21 版本的数据包 (数据包版本 48). 以下命令指定了输入文件为 `my_datapack.mcs`, 输出名为 `my_datapack` 的数据包 (包含输入文件中的函数). 
 
 ```sh
-mcscript my_datapack.mcs -o my_datapack
+mcsc my_datapack.mcs -o my_datapack
 ```
 
 可以指定多个输入文件: 
 
 
 ```sh
-mcscript namespace_1.mcs namespace_2.mcs -o my_datapack
+mcsc namespace_1.mcs namespace_2.mcs -o my_datapack
 ```
 
 此外, 编译器还会输出名为 `mcscript` 的数据包, 其中包含一些通用函数. 
