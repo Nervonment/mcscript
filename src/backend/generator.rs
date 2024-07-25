@@ -719,64 +719,6 @@ impl Generator {
         Ok(())
     }
 
-    fn get_element(
-        &mut self,
-        array: &mut Exp,
-        subscript: &mut Exp,
-        reg_acc: &mut RegAcc,
-        obj_acc: &mut ObjAcc,
-    ) -> Result<ExpVal, SemanticError> {
-        let subscript_val = self.eval(subscript, reg_acc, obj_acc)?;
-        if subscript_val.data_type != DataType::Int {
-            return Err(SemanticError::TypeMismatch {
-                expected_type: DataType::Int,
-                found_type: subscript_val.data_type,
-                begin: subscript.src_loc.begin,
-                end: subscript.src_loc.end,
-            });
-        }
-
-        let arr_val = self.eval(array, reg_acc, obj_acc)?;
-        if let DataType::Array { element_type } = arr_val.data_type {
-            self.mov(
-                &Location::Memory("memory:temp".into(), "subscript".into()),
-                &subscript_val.location,
-            );
-            match arr_val.location {
-                Location::Memory(naid, path) => {
-                    self.working_mcfunction().append_command(&format!(
-                        "data modify storage memory:temp array_path set value \"{} {}\"",
-                        naid, path
-                    ));
-                }
-                Location::MemoryRef(loc_naid, loc_path) => {
-                    self.working_mcfunction().append_command(&format!(
-                        "data modify storage memory:temp array_path set from storage {} {}",
-                        loc_naid, loc_path
-                    ));
-                }
-                _ => unreachable!(),
-            }
-            self.working_mcfunction()
-                .append_command("function mcscript:load_element_path with storage memory:temp");
-            let element_location = obj_acc.new_obj();
-            self.mov(
-                &element_location,
-                &Location::Memory("memory:temp".into(), "element_path".into()),
-            );
-            Ok(ExpVal {
-                data_type: *element_type,
-                location: Location::memory_ref(element_location),
-            })
-        } else {
-            return Err(SemanticError::IndexIntoNonArray {
-                found_type: arr_val.data_type,
-                begin: array.src_loc.begin,
-                end: array.src_loc.end,
-            });
-        }
-    }
-
     fn eval(
         &mut self,
         exp: &mut Exp,
@@ -946,6 +888,15 @@ impl Generator {
                     .query_function(&namespace, func_ident)?
                     .clone();
 
+                if func_def.params.len() != arguments.len() {
+                    return Err(SemanticError::FuncArgumentsCountMismatch {
+                        expected_count: func_def.params.len(),
+                        found_count: arguments.len(),
+                        begin: exp.src_loc.begin,
+                        end: exp.src_loc.end,
+                    });
+                }
+
                 // save registers
                 for i in 0..reg_acc.cnt {
                     self.mov(
@@ -960,6 +911,14 @@ impl Generator {
                 let mut reg_acc_1 = RegAcc::new(); // We just saved the using registers, so here we can restart the register counting.
                 for (i, arg) in arguments.iter_mut().enumerate() {
                     let exp_val = self.eval(arg, &mut reg_acc_1, obj_acc)?;
+                    if exp_val.data_type != func_def.params[i].data_type {
+                        return Err(SemanticError::TypeMismatch {
+                            expected_type: func_def.params[i].data_type.clone(),
+                            found_type: exp_val.data_type.clone(),
+                            begin: arg.src_loc.begin,
+                            end: arg.src_loc.end,
+                        });
+                    }
                     self.mov(&Location::argument(i as u32), &exp_val.location);
                 }
                 // call function
@@ -1141,55 +1100,258 @@ impl Generator {
                 })
             }
             ExpType::ArrayMethod { array, method } => {
-                let arr_val = self.eval(array, reg_acc, obj_acc)?;
-                match arr_val.data_type {
-                    DataType::Array { element_type: _ } => match method {
-                        ArrayMethodType::Size => {
-                            let reg_res = reg_acc.new_reg();
-                            match arr_val.location {
-                                Location::Memory(_, _) => {
-                                    self.working_mcfunction().append_command(&format!(
-                                        "execute store result score {} registers run data get storage {}", 
-                                        reg_res, arr_val.location
-                                    ));
-                                }
-                                Location::MemoryRef(_, _) => {
-                                    self.mov_immediate(
-                                        &Location::Memory(
-                                            "memory:temp".into(),
-                                            "target_reg".into(),
-                                        ),
-                                        &format!("{}", reg_res),
-                                        obj_acc,
-                                    );
-                                    self.working_mcfunction().append_commands(vec![&format!(
-                                        "data modify storage memory:temp array_path set from storage {}", arr_val.location
-                                    ),
-                                    "function mcscript:load_array_size with storage memory:temp"
-                                    ]);
-                                }
-                                _ => unreachable!(),
-                            }
-                            return Ok(ExpVal {
-                                data_type: DataType::Int,
-                                location: reg_res,
-                            });
-                        }
+                self.handle_array_method(array, method, reg_acc, obj_acc)
+            }
+        }
+    }
 
-                        _ => Ok(ExpVal {
-                            data_type: DataType::Int,
-                            location: Location::return_value(),
-                        }),
-                    },
-                    _ => {
-                        return Err(SemanticError::CallArrayMethodOnNonArray {
-                            method: method.clone(),
-                            found_type: arr_val.data_type.clone(),
-                            begin: array.src_loc.begin,
-                            end: array.src_loc.end,
-                        })
-                    }
+    fn get_element(
+        &mut self,
+        array: &mut Exp,
+        subscript: &mut Exp,
+        reg_acc: &mut RegAcc,
+        obj_acc: &mut ObjAcc,
+    ) -> Result<ExpVal, SemanticError> {
+        let subscript_val = self.eval(subscript, reg_acc, obj_acc)?;
+        if subscript_val.data_type != DataType::Int {
+            return Err(SemanticError::TypeMismatch {
+                expected_type: DataType::Int,
+                found_type: subscript_val.data_type,
+                begin: subscript.src_loc.begin,
+                end: subscript.src_loc.end,
+            });
+        }
+
+        let arr_val = self.eval(array, reg_acc, obj_acc)?;
+        if let DataType::Array { element_type } = arr_val.data_type {
+            self.mov(
+                &Location::Memory("memory:temp".into(), "subscript".into()),
+                &subscript_val.location,
+            );
+            match arr_val.location {
+                Location::Memory(naid, path) => {
+                    self.working_mcfunction().append_command(&format!(
+                        "data modify storage memory:temp array_path set value \"{} {}\"",
+                        naid, path
+                    ));
                 }
+                Location::MemoryRef(loc_naid, loc_path) => {
+                    self.working_mcfunction().append_command(&format!(
+                        "data modify storage memory:temp array_path set from storage {} {}",
+                        loc_naid, loc_path
+                    ));
+                }
+                _ => unreachable!(),
+            }
+            self.working_mcfunction()
+                .append_command("function mcscript:load_element_path with storage memory:temp");
+            let element_location = obj_acc.new_obj();
+            self.mov(
+                &element_location,
+                &Location::Memory("memory:temp".into(), "element_path".into()),
+            );
+            Ok(ExpVal {
+                data_type: *element_type,
+                location: Location::memory_ref(element_location),
+            })
+        } else {
+            return Err(SemanticError::IndexIntoNonArray {
+                found_type: arr_val.data_type,
+                begin: array.src_loc.begin,
+                end: array.src_loc.end,
+            });
+        }
+    }
+
+    fn handle_array_method(
+        &mut self,
+        array: &mut Exp,
+        method: &mut ArrayMethodType,
+        reg_acc: &mut RegAcc,
+        obj_acc: &mut ObjAcc,
+    ) -> Result<ExpVal, SemanticError> {
+        let arr_val = self.eval(array, reg_acc, obj_acc)?;
+        match &arr_val.data_type {
+            DataType::Array { element_type } => match method {
+                ArrayMethodType::Size => {
+                    let reg_res = reg_acc.new_reg();
+                    match arr_val.location {
+                        Location::Memory(_, _) => {
+                            self.working_mcfunction().append_command(&format!(
+                                "execute store result score {} registers run data get storage {}",
+                                reg_res, arr_val.location
+                            ));
+                        }
+                        Location::MemoryRef(_, _) => {
+                            self.mov_immediate(
+                                &Location::Memory("memory:temp".into(), "target_reg".into()),
+                                &format!("{}", reg_res),
+                                obj_acc,
+                            );
+                            self.working_mcfunction().append_commands(vec![&format!(
+                                "data modify storage memory:temp array_path set from storage {}", arr_val.location
+                            ),
+                            "function mcscript:load_array_size with storage memory:temp"
+                            ]);
+                        }
+                        _ => unreachable!(),
+                    }
+                    return Ok(ExpVal {
+                        data_type: DataType::Int,
+                        location: reg_res,
+                    });
+                }
+                ArrayMethodType::Push { value } => {
+                    let src_loc = value.src_loc.clone();
+                    let value = self.eval(value, reg_acc, obj_acc)?;
+                    if value.data_type != **element_type {
+                        return Err(SemanticError::TypeMismatch {
+                            expected_type: *element_type.clone(),
+                            found_type: value.data_type.clone(),
+                            begin: src_loc.begin,
+                            end: src_loc.end,
+                        });
+                    }
+                    self.mov(
+                        &Location::Memory("memory:temp".into(), "element".into()),
+                        &value.location,
+                    );
+                    match arr_val.location {
+                        Location::Memory(_, _) => {
+                            self.working_mcfunction().append_command(&format!(
+                                "data modify storage {} append from storage memory:temp element",
+                                arr_val.location
+                            ));
+                        }
+                        Location::MemoryRef(_, _) => {
+                            self.working_mcfunction().append_commands(vec![&format!(
+                                "data modify storage memory:temp array_path set from storage {}", arr_val.location
+                            ),
+                            "function mcscript:array_push with storage memory:temp"
+                            ]);
+                        }
+                        _ => unreachable!(),
+                    }
+                    return Ok(ExpVal {
+                        data_type: arr_val.data_type,
+                        location: arr_val.location,
+                    });
+                }
+                ArrayMethodType::Pop => {
+                    match arr_val.location {
+                        Location::Memory(_, _) => {
+                            self.working_mcfunction().append_command(&format!(
+                                "data remove storage {}[-1]",
+                                arr_val.location
+                            ));
+                        }
+                        Location::MemoryRef(_, _) => {
+                            self.working_mcfunction().append_commands(vec![&format!(
+                                "data modify storage memory:temp array_path set from storage {}", arr_val.location
+                            ),
+                            "function mcscript:array_pop with storage memory:temp"
+                            ]);
+                        }
+                        _ => unreachable!(),
+                    }
+                    return Ok(ExpVal {
+                        data_type: arr_val.data_type,
+                        location: arr_val.location,
+                    });
+                }
+                ArrayMethodType::Insert { pos, value } => {
+                    let pos_val = self.eval(pos, reg_acc, obj_acc)?;
+                    if pos_val.data_type != DataType::Int {
+                        return Err(SemanticError::TypeMismatch {
+                            expected_type: DataType::Int,
+                            found_type: pos_val.data_type.clone(),
+                            begin: pos.src_loc.begin,
+                            end: pos.src_loc.end,
+                        });
+                    }
+                    self.mov(
+                        &Location::Memory("memory:temp".into(), "subscript".into()),
+                        &pos_val.location,
+                    );
+                    let value_val = self.eval(value, reg_acc, obj_acc)?;
+                    if value_val.data_type != **element_type {
+                        return Err(SemanticError::TypeMismatch {
+                            expected_type: *element_type.clone(),
+                            found_type: value_val.data_type.clone(),
+                            begin: value.src_loc.begin,
+                            end: value.src_loc.end,
+                        });
+                    }
+                    self.mov(
+                        &Location::Memory("memory:temp".into(), "element".into()),
+                        &value_val.location,
+                    );
+                    match arr_val.location {
+                        Location::Memory(_, _) => {
+                            self.working_mcfunction().append_command(&format!(
+                                "data modify storage memory:temp array_path set value \"{}\"",
+                                arr_val.location
+                            ));
+                        }
+                        Location::MemoryRef(_, _) => {
+                            self.working_mcfunction().append_command(&format!(
+                                "data modify storage memory:temp array_path set from storage {}",
+                                arr_val.location,
+                            ));
+                        }
+                        _ => unreachable!(),
+                    }
+                    self.working_mcfunction()
+                        .append_command("function mcscript:array_insert with storage memory:temp");
+                    return Ok(ExpVal {
+                        data_type: arr_val.data_type,
+                        location: arr_val.location,
+                    });
+                }
+                ArrayMethodType::Erase { pos } => {
+                    let pos_val = self.eval(pos, reg_acc, obj_acc)?;
+                    if pos_val.data_type != DataType::Int {
+                        return Err(SemanticError::TypeMismatch {
+                            expected_type: DataType::Int,
+                            found_type: pos_val.data_type.clone(),
+                            begin: pos.src_loc.begin,
+                            end: pos.src_loc.end,
+                        });
+                    }
+                    self.mov(
+                        &Location::Memory("memory:temp".into(), "subscript".into()),
+                        &pos_val.location,
+                    );
+                    match arr_val.location {
+                        Location::Memory(_, _) => {
+                            self.working_mcfunction().append_command(&format!(
+                                "data modify storage memory:temp array_path set value \"{}\"",
+                                arr_val.location
+                            ));
+                        }
+                        Location::MemoryRef(_, _) => {
+                            self.working_mcfunction().append_command(&format!(
+                                "data modify storage memory:temp array_path set from storage {}",
+                                arr_val.location,
+                            ));
+                        }
+                        _ => unreachable!(),
+                    }
+                    self.working_mcfunction()
+                        .append_command("function mcscript:array_erase with storage memory:temp");
+                    return Ok(ExpVal {
+                        data_type: arr_val.data_type,
+                        location: arr_val.location,
+                    });
+                }
+            },
+            _ => {
+                return Err(SemanticError::CallArrayMethodOnNonArray {
+                    method: method.clone(),
+                    found_type: arr_val.data_type.clone(),
+                    begin: array.src_loc.begin,
+                    end: array.src_loc.end,
+                })
             }
         }
     }

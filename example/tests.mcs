@@ -140,6 +140,114 @@ fn arr_size_2() -> int {
     return [[[0], [3, 4]][1].size(), [[0].size()].size(), 1, 3].size();
 }
 
+fn arr_push_1() -> Array<int> {
+    let arr = Array<int>[];
+    let i = 0;
+    while i < 15 {
+        arr.push(i + 1);
+        i += 1;
+    }
+    return arr;
+}
+
+fn arr_push_2() -> Array<Array<int>> {
+    let arr = Array<Array<int>>[];
+    let i = 0;
+    while i < 8 {
+        arr.push([i + 1]);
+        i += 1;
+    }
+    return arr;
+}
+
+fn arr_push_3() -> Array<Array<int>> {
+    let arr = [Array<int>[]];
+    let i = 0;
+    while i < 8 {
+        arr[0].push(test_utils::fib(i + 1));
+        i += 1;
+    }
+    return arr;
+}
+
+fn arr_pop_1() -> Array<int> {
+    let arr = [1, 2, 3, 4, 5, 6];
+    arr.pop();
+    arr.pop();
+    arr.pop();
+    return arr;
+}
+
+fn arr_pop_2() -> Array<Array<int>> {
+    let arr = [[1, 2], [3, 4], [5], [6]];
+    arr.pop();
+    arr.pop();
+    arr.pop();
+    return arr;
+}
+
+fn arr_pop_3() -> Array<Array<int>> {
+    let arr = [[1, 2], [3, 4], [5], [6]];
+    arr[0].pop();
+    arr[1].pop();
+    arr[2].pop();
+    return arr;
+}
+
+fn arr_insert_1() -> Array<int> {
+    let arr = [1, 3, 5, 7];
+    arr.insert(1, 2);
+    arr.insert(3, 4);
+    arr.insert(5, 6);
+    arr.insert(7, 8);
+    return arr;
+}
+
+fn arr_insert_2() -> Array<Array<int>> {
+    let arr = [[1], [3], [5], [7]];
+    arr.insert(1, [2]);
+    arr.insert(3, [4]);
+    arr.insert(5, [6]);
+    arr.insert(7, [8]);
+    return arr;
+}
+
+fn arr_insert_3() -> Array<Array<int>> {
+    let arr = [[1], [3], [5], [7]];
+    arr[0].insert(1, 2);
+    arr[1].insert(1, 4);
+    arr[2].insert(1, 6);
+    arr[3].insert(1, 8);
+    return arr;
+}
+
+fn arr_erase_1() -> Array<int> {
+    let arr = [1, 2, 3, 4, 5, 6, 7, 8];
+    arr.erase(1);
+    arr.erase(2);
+    arr.erase(3);
+    arr.erase(4);
+    return arr;
+}
+
+fn arr_erase_2() -> Array<Array<int>> {
+    let arr = [[1], [2], [3], [4], [5], [6], [7], [8]];
+    arr.erase(1);
+    arr.erase(2);
+    arr.erase(3);
+    arr.erase(4);
+    return arr;
+}
+
+fn arr_erase_3() -> Array<Array<int>> {
+    let arr = [[1, 2, 3, 4], [5, 6, 7, 8]];
+    arr[0].erase(1);
+    arr[0].erase(2);
+    arr[1].erase(1);
+    arr[1].erase(2);
+    return arr;
+}
+
 fn func_defn_1() -> int {
     let a = 10;
     let b = test_utils::f1(a);

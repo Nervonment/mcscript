@@ -46,4 +46,10 @@ pub enum SemanticError {
         begin: usize,
         end: usize,
     },
+    FuncArgumentsCountMismatch {
+        expected_count: usize,
+        found_count: usize,
+        begin: usize,
+        end: usize,
+    },
 }

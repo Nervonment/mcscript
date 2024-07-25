@@ -274,10 +274,27 @@ pub fn handle_semantic_error(file_path: &Path, content: &str, err: &SemanticErro
                 *begin,
                 *end,
                 &format!(
-                    "cannot call {} on \"{}\" which is of type \"{}\"",
+                    "cannot call \"{}\" on \"{}\" which is of type \"{}\"",
                     method,
                     &content[*begin..*end],
                     found_type
+                ),
+            )?;
+        }
+        SemanticError::FuncArgumentsCountMismatch {
+            expected_count,
+            found_count,
+            begin,
+            end,
+        } => {
+            show_error_message(
+                file_path,
+                &content_split,
+                *begin,
+                *end,
+                &format!(
+                    "function expected {} argument(s), found {}.",
+                    expected_count, found_count
                 ),
             )?;
         }
