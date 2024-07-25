@@ -131,6 +131,15 @@ fn arr_subscript_2() -> Array<Array<Array<int>>> {
     return arr;
 }
 
+fn arr_size_1() -> int {
+    let arr = [1, 2, 4];
+    return Array<int>[].size() + [1, 2, 3].size() + [[1], [[2].size()]].size() + arr.size() + test_utils::f5(arr).size() + [[1, 2], [1]][0].size();
+}
+
+fn arr_size_2() -> int {
+    return [[[0], [3, 4]][1].size(), [[0].size()].size(), 1, 3].size();
+}
+
 fn func_defn_1() -> int {
     let a = 10;
     let b = test_utils::f1(a);
@@ -424,52 +433,43 @@ fn binary_op_8() -> int {
 
 
 fn sort_1() -> Array<int> {
-    return test_utils::bubble_sort(
-        [1, 1, 4, 5, 1, 4, 1, 9, 1, 9, 8, 1, 0],
-        13
-    );
+    test_utils::init_array();
+    test_utils::bubble_sort();
+    return test_utils::arr;
 }
 
 fn sort_2() -> Array<int> {
-    return test_utils::insert_sort(
-        [1, 1, 4, 5, 1, 4, 1, 9, 1, 9, 8, 1, 0],
-        13
-    );
+    test_utils::init_array();
+    test_utils::insert_sort();
+    return test_utils::arr;
 }
 
 fn sort_3() -> Array<int> {
-    return test_utils::quick_sort(
-        [1, 1, 4, 5, 1, 4, 1, 9, 1, 9, 8, 1, 0],
-        0,
-        12
-    );
+    test_utils::init_array();
+    test_utils::quick_sort();
+    return test_utils::arr;
 }
 
 fn sort_4() -> Array<int> {
-    return test_utils::select_sort(
-        [1, 1, 4, 5, 1, 4, 1, 9, 1, 9, 8, 1, 0],
-        13
-    );
+   test_utils::init_array();
+    test_utils::select_sort();
+    return test_utils::arr;
 }
 
 fn sort_5() -> Array<int> {
-    return test_utils::heap_sort(
-        [1, 1, 4, 5, 1, 4, 1, 9, 1, 9, 8, 1, 0],
-        13
-    );
+    test_utils::init_array();
+    test_utils::heap_sort();
+    return test_utils::arr;
 }
 
 fn sort_6() -> Array<int> {
-    return test_utils::counting_sort(
-        [1, 1, 4, 5, 1, 4, 1, 9, 1, 9, 8, 1, 0],
-        13
-    );
+    test_utils::init_array();
+    test_utils::counting_sort();
+    return test_utils::arr;
 }
 
 fn sort_7() -> Array<int> {
-    return test_utils::merge_sort(
-        [1, 1, 4, 5, 1, 4, 1, 9, 1, 9, 8, 1, 0],
-        0, 
-        13
-    );
+    test_utils::init_array();
+    test_utils::merge_sort();
+    return test_utils::arr;
 }

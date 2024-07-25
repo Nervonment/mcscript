@@ -28,6 +28,10 @@ pub fn mcscript_datapack(path: String) -> Datapack {
     load_element_path.append_command(
         "data modify storage memory:temp element_path set value \"$(array_path)[$(subscript)]\"",
     );
+    let mut load_array_size = Mcfunction::new("load_array_size".into());
+    load_array_size.append_command(
+        "execute store result score $(target_reg) registers run data get storage $(array_path)"
+    );
     let mut namespace = Namespace::new("mcscript".into());
     namespace.append_mcfunction(init);
     namespace.append_mcfunction(pop_frame);
@@ -35,6 +39,7 @@ pub fn mcscript_datapack(path: String) -> Datapack {
     namespace.append_mcfunction(mov_m_r);
     namespace.append_mcfunction(mov_r_m);
     namespace.append_mcfunction(load_element_path);
+    namespace.append_mcfunction(load_array_size);
     let mut datapack = Datapack::new(path);
     datapack.append_namespace(namespace);
     datapack

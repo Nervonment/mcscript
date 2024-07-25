@@ -1,7 +1,7 @@
 use crate::frontend::{
     ast::{
         CompileUnit, GlobalDef, FuncDef, Block, BlockItem, Stmt, Decl, FuncParam, DataType, Ident, SrcLocation, 
-        exp::{ Exp, ExpType, UnaryOp, BinaryOp },
+        exp::{ Exp, ExpType, UnaryOp, BinaryOp, ArrayMethodType },
     },
     lexer::apply_string_escapes,
 };
@@ -121,6 +121,7 @@ PrimaryExp: Box<Exp> = {
     NewArray,
     SquareBracketsArray, 
     ArrayElement,
+    ArrayMethod, 
     "(" <Exp> ")",
 }
 
@@ -161,6 +162,14 @@ ArrayElement: Box<Exp> = {
 
 Subscript: Box<Exp> = {
     "[" <Exp> "]" => <>,
+}
+
+ArrayMethod: Box<Exp> = {
+    <begin: @L> <array: PrimaryExp> "." "size" "("  ")" <end: @R> => Box::new(Exp { exp_type: ExpType::ArrayMethod{ array, method: ArrayMethodType::Size }, src_loc: SrcLocation { begin, end } }),
+    <begin: @L> <array: PrimaryExp> "." "push" "(" <value: Exp> ")" <end: @R> => Box::new(Exp { exp_type: ExpType::ArrayMethod{ array, method: ArrayMethodType::Push{ value } }, src_loc: SrcLocation { begin, end } }),
+    <begin: @L> <array: PrimaryExp> "." "pop" "("  ")" <end: @R> => Box::new(Exp { exp_type: ExpType::ArrayMethod{ array, method: ArrayMethodType::Pop }, src_loc: SrcLocation { begin, end } }),
+    <begin: @L> <array: PrimaryExp> "." "insert" "(" <pos: Exp> "," <value: Exp> ")" <end: @R> => Box::new(Exp { exp_type: ExpType::ArrayMethod{ array, method: ArrayMethodType::Insert{ pos, value } }, src_loc: SrcLocation { begin, end } }),
+    <begin: @L> <array: PrimaryExp> "." "erase" "(" <pos: Exp> ")" <end: @R> => Box::new(Exp { exp_type: ExpType::ArrayMethod{ array, method: ArrayMethodType::Erase{ pos } }, src_loc: SrcLocation { begin, end } }),
 }
 
 UnaryExp: Box<Exp> = {

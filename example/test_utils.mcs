@@ -79,7 +79,14 @@ fn f8() -> int {
     }
 }
 
-fn bubble_sort(arr: Array<int>, n: int) -> Array<int> {
+let arr: Array<int> = [0];
+
+fn init_array() {
+    arr = [637, 846, 749, 720, 99, 397, 274, 561, 153, 597, 503, 992, 717, 243, 389, 467, 608, 687, 658, 994];
+}
+
+fn bubble_sort() {
+    let n = arr.size();
     let i = 0;
     while i < n - 1 {
         let j = 0;
@@ -93,10 +100,10 @@ fn bubble_sort(arr: Array<int>, n: int) -> Array<int> {
         }
         i += 1;
     }
-    return arr;
 }
 
-fn insert_sort(arr: Array<int>, n: int) -> Array<int> {
+fn insert_sort() {
+    let n = arr.size();
     let i = 1;
     while i < n {
         let tmp = arr[i];
@@ -108,12 +115,15 @@ fn insert_sort(arr: Array<int>, n: int) -> Array<int> {
         arr[j + 1] = tmp;
         i += 1;
     }
-    return arr;
 }
 
-fn quick_sort(arr: Array<int>, begin: int, end: int) -> Array<int> {
+fn quick_sort() {
+    quick_sort_impl(0, arr.size() - 1);
+}
+
+fn quick_sort_impl(begin: int, end: int) {
     if begin >= end {
-        return arr;
+        return;
     }
     let i = begin;
     let j = end;
@@ -135,12 +145,12 @@ fn quick_sort(arr: Array<int>, begin: int, end: int) -> Array<int> {
         }
     }
     arr[i] = tmp;
-    arr = quick_sort(arr, begin, i - 1);
-    arr = quick_sort(arr, i + 1, end);
-    return arr;
+    quick_sort_impl(begin, i - 1);
+    quick_sort_impl(i + 1, end);
 }
 
-fn select_sort(arr: Array<int>, n: int) -> Array<int> {
+fn select_sort() {
+    let n = arr.size();
     let i = 0;
     while i < n - 1 {
         let min = i;
@@ -156,10 +166,9 @@ fn select_sort(arr: Array<int>, n: int) -> Array<int> {
         arr[i] = tmp;
         i += 1;
     }
-    return arr;
 }
 
-fn make_heap(arr: Array<int>, begin: int, end: int) -> Array<int> {
+fn make_heap(begin: int, end: int) {
     let p = begin;
     let c = p * 2 + 1;
     while c < end + 1 {
@@ -167,7 +176,7 @@ fn make_heap(arr: Array<int>, begin: int, end: int) -> Array<int> {
             c += 1;
         }
         if arr[p] > arr[c] {
-            return arr;
+            return;
         } else {
             let tmp = arr[p];
             arr[p] = arr[c];
@@ -176,13 +185,13 @@ fn make_heap(arr: Array<int>, begin: int, end: int) -> Array<int> {
             c = p * 2 + 1;
         }
     }
-    return arr;
 }
 
-fn heap_sort(arr: Array<int>, n: int) -> Array<int> {
+fn heap_sort() {
+    let n = arr.size();
     let i = n / 2 - 1;
     while i > -1 {
-        arr = make_heap(arr, i, n - 1);
+        make_heap(i, n - 1);
         i -= 1;
     }
     i = n - 1;
@@ -190,15 +199,15 @@ fn heap_sort(arr: Array<int>, n: int) -> Array<int> {
         let tmp = arr[0];
         arr[0] = arr[i];
         arr[i] = tmp;
-        arr = make_heap(arr, 0, i - 1);
+        make_heap(0, i - 1);
         i -= 1;
     }
-    return arr;
 }
 
-// assuming all the numbers in `arr` are in range [0, 10)
-fn counting_sort(arr: Array<int>, n: int) -> Array<int> {
-    let cnt_arr = [0; 10];
+// assuming all the numbers in `arr` are in range [0, 1000)
+fn counting_sort() {
+    let n = arr.size();
+    let cnt_arr = [0; 1000];
     let sorted_arr = [0; n];
     let i = 0;
     while i < n {
@@ -206,7 +215,7 @@ fn counting_sort(arr: Array<int>, n: int) -> Array<int> {
         i += 1;
     }
     let k = 1;
-    while k < 10 {
+    while k < 1000 {
         cnt_arr[k] += cnt_arr[k - 1];
         k += 1;
     }
@@ -216,17 +225,21 @@ fn counting_sort(arr: Array<int>, n: int) -> Array<int> {
         sorted_arr[cnt_arr[arr[j - 1]]] = arr[j - 1];
         j -= 1;
     }
-    return sorted_arr;
+    arr = sorted_arr;
 }
 
-fn merge_sort(arr: Array<int>, l: int, r: int) -> Array<int> {
+fn merge_sort() {
+    merge_sort_impl(0, arr.size());
+}
+
+fn merge_sort_impl(l: int, r: int) {
     if l > r {
-        return arr;
+        return;
     }
 
     let mid = (l + r) / 2;
-    arr = merge_sort(l, mid);
-    arr = merge_sort(mid, r);
+    merge_sort_impl(l, mid);
+    merge_sort_impl(mid, r);
 
     let i = l;
     let j = mid;
@@ -252,5 +265,5 @@ fn merge_sort(arr: Array<int>, l: int, r: int) -> Array<int> {
         j += 1;
         k += 1;
     }
-    return tmp_arr
+    arr = tmp_arr;
 }

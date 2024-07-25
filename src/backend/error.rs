@@ -1,4 +1,4 @@
-use crate::frontend::ast::DataType;
+use crate::frontend::ast::{exp::ArrayMethodType, DataType};
 
 pub enum SemanticError {
     MultipleDefinition {
@@ -37,6 +37,12 @@ pub enum SemanticError {
         end: usize,
     },
     NoLoopToContinue {
+        begin: usize,
+        end: usize,
+    },
+    CallArrayMethodOnNonArray {
+        method: ArrayMethodType,
+        found_type: DataType,
         begin: usize,
         end: usize,
     },

@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt::Display};
 use crate::{
     backend::datapack::{Datapack, Mcfunction, Namespace},
     frontend::ast::{
-        exp::{BinaryOp, Exp, ExpType, UnaryOp},
+        exp::{ArrayMethodType, BinaryOp, Exp, ExpType, UnaryOp},
         Block, BlockItem, CompileUnit, DataType, FuncDef, FuncParam, GlobalDef, Ident, SrcLocation,
         Stmt,
     },
@@ -1139,6 +1139,57 @@ impl Generator {
                     },
                     location: arr,
                 })
+            }
+            ExpType::ArrayMethod { array, method } => {
+                let arr_val = self.eval(array, reg_acc, obj_acc)?;
+                match arr_val.data_type {
+                    DataType::Array { element_type: _ } => match method {
+                        ArrayMethodType::Size => {
+                            let reg_res = reg_acc.new_reg();
+                            match arr_val.location {
+                                Location::Memory(_, _) => {
+                                    self.working_mcfunction().append_command(&format!(
+                                        "execute store result score {} registers run data get storage {}", 
+                                        reg_res, arr_val.location
+                                    ));
+                                }
+                                Location::MemoryRef(_, _) => {
+                                    self.mov_immediate(
+                                        &Location::Memory(
+                                            "memory:temp".into(),
+                                            "target_reg".into(),
+                                        ),
+                                        &format!("{}", reg_res),
+                                        obj_acc,
+                                    );
+                                    self.working_mcfunction().append_commands(vec![&format!(
+                                        "data modify storage memory:temp array_path set from storage {}", arr_val.location
+                                    ),
+                                    "function mcscript:load_array_size with storage memory:temp"
+                                    ]);
+                                }
+                                _ => unreachable!(),
+                            }
+                            return Ok(ExpVal {
+                                data_type: DataType::Int,
+                                location: reg_res,
+                            });
+                        }
+
+                        _ => Ok(ExpVal {
+                            data_type: DataType::Int,
+                            location: Location::return_value(),
+                        }),
+                    },
+                    _ => {
+                        return Err(SemanticError::CallArrayMethodOnNonArray {
+                            method: method.clone(),
+                            found_type: arr_val.data_type.clone(),
+                            begin: array.src_loc.begin,
+                            end: array.src_loc.end,
+                        })
+                    }
+                }
             }
         }
     }
