@@ -252,5 +252,5 @@ fn merge_sort(arr: Array<int>, l: int, r: int) -> Array<int> {
         j += 1;
         k += 1;
     }
-    return tmp_arr
+    return tmp_arr;
 }
