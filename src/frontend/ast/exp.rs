@@ -19,6 +19,10 @@ pub enum ExpType {
         array: Box<Exp>,
         subscript: Box<Exp>,
     },
+    ArrayMethod {
+        array: Box<Exp>,
+        method: ArrayMethodType,
+    },
     FuncCall {
         namespace: Option<Ident>,
         func_ident: Ident,
@@ -55,4 +59,13 @@ pub enum BinaryOp {
     Ne,
     LAnd,
     LOr,
+}
+
+#[derive(Debug, Clone)]
+pub enum ArrayMethodType {
+    Size,
+    Push { value: Box<Exp> },
+    Pop,
+    Insert { pos: Box<Exp>, value: Box<Exp> },
+    Erase { pos: Box<Exp> },
 }

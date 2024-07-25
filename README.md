@@ -2,7 +2,7 @@
 
 MCScript 是一门简易的编程语言, 它的目标语言为 Minecraft 命令 (`.mcfunction`). 通过 MCScript, 你可以将使用高级编程语言编写的逻辑轻松地移植到 Minecraft 数据包中. 
 
-*使用 MCScript 编译器生成的数据包性能不如手工编写, 不建议将其用于生产用途.*
+*MCScript 编译器暂未实现优化, 生成的数据包性能可能远低于手工编写, 不建议将其用于生产用途.*
 
 ## 示例
 
@@ -59,3 +59,11 @@ mcsc namespace_1.mcs namespace_2.mcs -o my_datapack
 ## 运行测试
 
 参见[此处](test.md). 
+
+## 计划
+
+- 对象和元组. 
+- 从实体和方块实体中获取数据的方法. 
+- 设计 IR 和优化. 
+- 编译时常量. 
+- 引用. 

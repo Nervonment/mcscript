@@ -28,6 +28,26 @@ pub fn mcscript_datapack(path: String) -> Datapack {
     load_element_path.append_command(
         "data modify storage memory:temp element_path set value \"$(array_path)[$(subscript)]\"",
     );
+    let mut load_array_size = Mcfunction::new("load_array_size".into());
+    load_array_size.append_command(
+        "execute store result score $(target_reg) registers run data get storage $(array_path)",
+    );
+    let mut array_push = Mcfunction::new("array_push".into());
+    array_push.append_command(
+        "data modify storage $(array_path) append from storage memory:temp element",
+    );
+    let mut array_pop = Mcfunction::new("array_pop".into());
+    array_pop.append_command(
+        "data remove storage $(array_path)[-1]",
+    );
+    let mut array_insert = Mcfunction::new("array_insert".into());
+    array_insert.append_command(
+        "data modify storage $(array_path) insert $(subscript) value $(element)",
+    );
+    let mut array_erase = Mcfunction::new("array_erase".into());
+    array_erase.append_command(
+        "data remove storage $(array_path)[$(subscript)]",
+    );
     let mut namespace = Namespace::new("mcscript".into());
     namespace.append_mcfunction(init);
     namespace.append_mcfunction(pop_frame);
@@ -35,6 +55,11 @@ pub fn mcscript_datapack(path: String) -> Datapack {
     namespace.append_mcfunction(mov_m_r);
     namespace.append_mcfunction(mov_r_m);
     namespace.append_mcfunction(load_element_path);
+    namespace.append_mcfunction(load_array_size);
+    namespace.append_mcfunction(array_push);
+    namespace.append_mcfunction(array_pop);
+    namespace.append_mcfunction(array_insert);
+    namespace.append_mcfunction(array_erase);
     let mut datapack = Datapack::new(path);
     datapack.append_namespace(namespace);
     datapack

@@ -9,7 +9,7 @@ use crossterm::{
 };
 use lalrpop_util::{lexer::Token, ParseError};
 
-use crate::backend::error::SemanticError;
+use crate::{backend::error::SemanticError, frontend::ast::exp::ArrayMethodType};
 
 pub struct Split<'a>(Vec<(&'a str, usize, usize)>);
 
@@ -253,6 +253,49 @@ pub fn handle_semantic_error(file_path: &Path, content: &str, err: &SemanticErro
                 *begin,
                 *end,
                 "there is no loop to continue",
+            )?;
+        }
+        SemanticError::CallArrayMethodOnNonArray {
+            method,
+            found_type,
+            begin,
+            end,
+        } => {
+            let method = match method {
+                ArrayMethodType::Size => "size",
+                ArrayMethodType::Push { value: _ } => "push",
+                ArrayMethodType::Pop => "pop",
+                ArrayMethodType::Insert { pos: _, value: _ } => "insert",
+                ArrayMethodType::Erase { pos: _ } => "erase",
+            };
+            show_error_message(
+                file_path,
+                &content_split,
+                *begin,
+                *end,
+                &format!(
+                    "cannot call \"{}\" on \"{}\" which is of type \"{}\"",
+                    method,
+                    &content[*begin..*end],
+                    found_type
+                ),
+            )?;
+        }
+        SemanticError::FuncArgumentsCountMismatch {
+            expected_count,
+            found_count,
+            begin,
+            end,
+        } => {
+            show_error_message(
+                file_path,
+                &content_split,
+                *begin,
+                *end,
+                &format!(
+                    "function expected {} argument(s), found {}.",
+                    expected_count, found_count
+                ),
             )?;
         }
     }

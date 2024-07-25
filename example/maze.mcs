@@ -1,16 +1,16 @@
 // 在运行此代码之前, 请将游戏规则 maxCommandChainLength 增大,
-// 经测试, 1000000000 是可行的值. 
+// 经测试, 1000000 是可行的值. 
 // 运行以下的命令来应用此游戏规则: 
-// /gamerule maxCommandChainLength 1000000000
+// /gamerule maxCommandChainLength 1000000
 // 完成后, 请按照以下的顺序运行命令:
 // /function mcscript:init
 // /function maze:init
 // /function maze:main
 
 // Before running this code, please increase the maxCommandChainLength game rule.
-// After testing, 1000000000 is a feasible value.
+// After testing, 1000000 is a feasible value.
 // Run the following command to apply this game rule:
-// /gamerule maxCommandChainLength 1000000000
+// /gamerule maxCommandChainLength 1000000
 // Once completed, please run the commands in the following order:
 // /function mcscript:init
 // /function maze:init
@@ -31,21 +31,20 @@ let random_num: int = 1;
 
 // 修改 RANDOM_SEED 的值以生成不同的迷宫. 
 // Modify the value of RANDOM_SEED to generate different mazes. 
-let RANDOM_SEED: int = 7;
+let RANDOM_SEED: int = 13;
 
 let maze: Array<Array<int>> = [[WALL; WIDTH]; HEIGHT];
 
 let x: int = 1;
 let y: int = 1;
-let blocks: Array<Array<int>> = [[0, 0, 0]; 300];
-let blocks_size: int = 0;
+let blocks: Array<Array<int>> = Array<Array<int>>[];
 
 fn main() {
     maze[1][1] = AIR;
     find();
-    while blocks_size {
+    while blocks.size() {
         random_num += RANDOM_SEED;
-        random_num %= blocks_size;
+        random_num %= blocks.size();
         let block = blocks[random_num];
         x = block[0];
         y = block[1];
@@ -64,7 +63,7 @@ fn main() {
             maze[block[0]][block[1]] = AIR;
             find();
         }
-        random_erase();
+        blocks.erase(random_num);
     }
 
     let x = 0;
@@ -83,29 +82,15 @@ fn main() {
 
 fn find() {
     if x + 1 < WIDTH - 1 && maze[x + 1][y] == WALL {
-        push(x + 1, y, DOWN);
+        blocks.push([x + 1, y, DOWN]);
     }
     if y + 1 < HEIGHT - 1 && maze[x][y + 1] == WALL {
-        push(x, y + 1, RIGHT);
+        blocks.push([x, y + 1, RIGHT]);
     }
     if x - 1 > 0 && maze[x - 1][y] == WALL {
-        push(x - 1, y, UP);
+        blocks.push([x - 1, y, UP]);
     }
     if y - 1 > 0 && maze[x][y - 1] == WALL {
-        push(x, y - 1, LEFT);
+        blocks.push([x, y - 1, LEFT]);
     } 
-}
-
-fn push(x: int, y: int, dir: int) {
-    blocks[blocks_size] = [x, y, dir];
-    blocks_size += 1;
-}
-
-fn random_erase() {
-    let i = random_num;
-    while i + 1 < blocks_size {
-        blocks[i] = blocks[i + 1];
-        i += 1;
-    }
-    blocks_size -= 1;
 }
