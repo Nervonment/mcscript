@@ -767,6 +767,18 @@ impl Generator {
                                 location: reg_res,
                             })
                         }
+                        UnaryOp::Not => {
+                            let reg_res = reg_acc.new_reg();
+                            self.mov_immediate(&reg_res, "0", obj_acc);
+                            self.working_mcfunction().append_command(&format!(
+                                "execute if score {} registers matches 0 run scoreboard players set {} registers 1",
+                                reg_exp, reg_res
+                            ));
+                            Ok(ExpVal {
+                                data_type: DataType::Int,
+                                location: reg_res,
+                            })
+                        }
                     }
                 } else {
                     return Err(SemanticError::TypeMismatch {

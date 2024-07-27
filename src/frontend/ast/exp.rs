@@ -42,6 +42,7 @@ pub enum ExpType {
 pub enum UnaryOp {
     Positive,
     Negative,
+    Not,
 }
 
 #[derive(Debug, Clone)]

@@ -507,6 +507,14 @@ fn unary_op_2() -> int {
     return + - + - + -1;
 }
 
+fn unary_op_3() -> int {
+    return !1 + !21983 + !-138;
+}
+
+fn unary_op_4() -> int {
+    return !0 + !(1 > 2) + !(3 == 4);
+}
+
 fn binary_op_1() -> int {
     return 1 * 2 + 3 * 4;
 }

@@ -5,5 +5,6 @@
 /test_server/logs
 /test_server/versions
 /test_server/world
+/test_server/crash-reports
 /test_server/*.json
 /test_server/*.jar

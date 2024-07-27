@@ -162,6 +162,8 @@ fn tests() -> Result<()> {
         ("glob_var_10", "1"),
         ("unary_op_1", "1"),
         ("unary_op_2", "-1"),
+        ("unary_op_3", "0"),
+        ("unary_op_4", "3"),
         ("binary_op_1", "14"),
         ("binary_op_2", "20"),
         ("binary_op_3", "28"),

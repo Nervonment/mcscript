@@ -205,7 +205,7 @@ MCScript 支持数组的 5 种操作:
 
 ```
 let arr = [1; 10];
-let size = arr.size(); // 取数组的长度
+let s = arr.size(); // 取数组的长度
 arr.push(2); // 向数组最后插入 2
 arr.pop(); // 删除数组最后一个元素, 也就是刚刚插入的 2
 arr.insert(1, 3); // 在数组下标 1 处插入 3

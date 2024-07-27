@@ -182,6 +182,7 @@ UnaryExp: Box<Exp> = {
 UnaryOp: UnaryOp = {
     "+" => UnaryOp::Positive,
     "-" => UnaryOp::Negative,
+    "!" => UnaryOp::Not,
 }
 
 MulExp: Box<Exp> = {
