@@ -27,6 +27,10 @@ fn generate_column() {
 
 ![生成迷宫](pictures/2024-07-24_00.51.23.png)
 
+- [example/snake.mcs](example/snake.mcs) 中的代码能够生成一个可以玩贪吃蛇游戏的屏幕: 
+
+![贪吃蛇](pictures/2024-07-28_17.02.57.png)
+
 ## 使用方法
 
 详细使用说明参见[此处](usage.md). 

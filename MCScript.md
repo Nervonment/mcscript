@@ -30,7 +30,7 @@ MCScript 中的变量具有静态类型. 你不能将 `A` 类型的值赋值给 
 
 ### 运算
 
-MCScript 支持的一元运算符有 `+` `-`; 支持的二元运算符有 `+` `-` `*` `/` `%` `>` `>=` `<` `<=` `==` `!=` `&&` `||`. 支持的赋值运算符有 `=` `+=` `-=` `*=` `/=` `%=`. 
+MCScript 支持的一元运算符有 `+` `-` `!`; 支持的二元运算符有 `+` `-` `*` `/` `%` `>` `>=` `<` `<=` `==` `!=` `&&` `||`. 支持的赋值运算符有 `=` `+=` `-=` `*=` `/=` `%=`. 
 
 *注意, `&&` 和 `||` 不支持短路求值.*
 
@@ -224,13 +224,22 @@ fn hello_world() {
 }
 ```
 
-`run_command!` 可以接受格式化参数: 
+要向命令中传递 MCScript 中的值, 可以在 `run_command!` 中使用格式化参数: 
 
 ```
 fn show_result() {
     let x = 1;
     let y = 2;
     run_command!("say {} + {} = {}", x, y, x + y);
+}
+```
+
+要从游戏中获得某个实体/方块的数据, 可以将这个数据保存在[命令存储](https://zh.minecraft.wiki/w/%E5%91%BD%E4%BB%A4%E5%AD%98%E5%82%A8%E6%A0%BC%E5%BC%8F?variant=zh-cn) `memory:temp return_value` 中, 让某个函数返回: 
+
+```
+// 返回随机实体的 UUID, 当作随机数使用. 
+fn rand() -> int {
+    run_command!("execute store result storage memory:temp return_value int 1.0 run data get entity @e[sort=random,limit=1] UUID[0]");
 }
 ```
 

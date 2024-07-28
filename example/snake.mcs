@@ -1,0 +1,250 @@
+// 按照以下的顺序运行命令:
+// /function mcscript:init
+// /function snake:init
+// /function snake:generate
+
+// Run the commands in the following order::
+// /function mcscript:init
+// /function snake:init
+// /function snake:generate
+
+let WIDTH: int = 14;
+let HEIGHT: int = 12;
+
+let DOWN: Array<int> = [0, -1];
+let UP: Array<int> = [0, 1];
+let LEFT: Array<int> = [1, 0];
+let RIGHT: Array<int> = [-1, 0];
+
+let INIT_SNAKE: Array<Array<int>> = [[8, 8], [7, 8], [6, 8], [5, 8]]; // the last element is the head
+let BONUS_FOOD_SCORE_RATE: int = 5;
+
+let snake: Array<Array<int>> = INIT_SNAKE;
+let food: Array<int> = [0, 0];
+let is_bonus_food: int = 0;
+let bonus_food_rest_time: int = 0;
+let total_food_generated: int = 0;
+let dir: Array<int> = RIGHT;
+let score: int = 0;
+
+let tick: int = 0;
+let is_game_on: int = 0;
+let last_slot: int = -1;
+
+let is_screen_ready: int = 0;
+
+fn init_screen() {
+    let c = 0;
+    while c < 16 {
+        let r = 0;
+        while r < 16 {
+            run_command!("summon minecraft:block_display ~-0.5 ~-0.5 ~-1.05 {block_state: {Name: \"gray_concrete\"}, transformation: [0.0625,0.,0.,0., 0.,0.0625,0.,0., 0.,0.,0.0625,0., 0.,0.,0.,1.], Tags: [\"snake_screen\", \"r{}c{}\"]}", r, c);
+            let c1 = c * 625;
+            let r1 = r * 625;
+            let z = 0;
+            if r > 2 && r < 15 && c > 0 && c < 15 {
+                run_command!("tag @e[tag=r{}c{}] add snake_screen_inner", r, c);
+                z = 5;
+            } else {
+                z = 49;
+            }
+            run_command!("data modify entity @e[tag=r{}c{},limit=1] transformation.translation set value [0.{}{}, 0.{}{}, 0.{}]", r, c, c1 / 1000, c1 % 1000, r1 / 1000, r1 % 1000, z);
+            r += 1;
+        }
+        c += 1;
+    }
+    // fill the screen
+    run_command!("execute as @e[tag=snake_screen_inner] run data modify entity @s block_state.Name set value \"black_concrete\"");
+    // decorations
+    run_command!("data modify entity @e[tag=r1c1,limit=1] block_state.Name set value \"red_concrete\"");
+    run_command!("data modify entity @e[tag=r1c1,limit=1] transformation.translation set value [0.0625, 0.0625, 0.485]");
+    run_command!("data modify entity @e[tag=r1c3,limit=1] block_state.Name set value \"black_concrete\"");
+    run_command!("data modify entity @e[tag=r1c3,limit=1] transformation.translation set value [0.1875, 0.0625, 0.475]");
+    run_command!("data modify entity @e[tag=r1c5,limit=1] block_state.Name set value \"black_concrete\"");
+    run_command!("data modify entity @e[tag=r1c5,limit=1] transformation.translation set value [0.3125, 0.0625, 0.475]");
+    
+    is_screen_ready = 1;
+}
+
+fn draw_screen() {
+    run_command!("execute as @e[tag=snake_screen_inner] run data modify entity @s block_state.Name set value \"black_concrete\"");
+    let i = 0;
+    // draw the snake body
+    while i < snake.size() {
+        run_command!("data modify entity @e[tag=r{}c{},limit=1] block_state.Name set value \"orange_concrete\"", snake[i][1] + 3, snake[i][0] + 1);
+        i += 1;
+    }
+    // draw the food
+    // show the current score
+    if is_bonus_food {
+        run_command!("data modify entity @e[tag=r{}c{},limit=1] block_state.Name set value \"light_blue_concrete\"", food[1] + 3, food[0] + 1);
+        run_command!("title @p[distance=..5] actionbar [\"Bonus Time! \", {\"text\": \"+{}\", \"color\": \"aqua\", \"bold\": true}]", bonus_food_rest_time * BONUS_FOOD_SCORE_RATE);
+    } else {
+        run_command!("data modify entity @e[tag=r{}c{},limit=1] block_state.Name set value \"yellow_concrete\"", food[1] + 3, food[0] + 1);
+        run_command!("title @p[distance=..5] actionbar \"Score: {}\"", score);
+    }
+}
+
+fn process_input() {
+    let slot = get_selected_slot();
+    if last_slot != slot {
+        last_slot = slot;
+        if slot == 0 {
+            if dir[0] != RIGHT[0] || dir[1] != RIGHT[1] {
+                dir = LEFT;
+            }
+        } else if slot == 1 {
+            if dir[0] != UP[0] || dir[1] != UP[1] {
+                dir = DOWN;
+            }
+        } else if slot == 2 {
+            if dir[0] != DOWN[0] || dir[1] != DOWN[1] {
+                dir = UP;
+            }
+        } else if slot == 3 {
+            if dir[0] != LEFT[0] || dir[1] != LEFT[1] {
+                dir = RIGHT;
+            }
+        } else if slot == 8 {
+            start();
+        }
+    }
+}
+
+fn get_selected_slot() -> int {
+    run_command!("execute store result storage memory:temp return_value int 1.0 run data get entity @p[distance=..5] SelectedItemSlot");
+}
+
+fn move() {
+    snake.erase(0);
+    let new_head = snake[snake.size() - 1];
+    new_head[0] += dir[0] + WIDTH;
+    new_head[0] %= WIDTH;
+    new_head[1] += dir[1] + HEIGHT;
+    new_head[1] %= HEIGHT;
+    snake.push(new_head);
+}
+
+fn check() {
+    if is_food_in_snake_body() {
+        if is_bonus_food {
+            score += bonus_food_rest_time * BONUS_FOOD_SCORE_RATE;
+            is_bonus_food = 0;
+        } else {
+            score += 5;
+        }
+        grow();
+        generate_food();
+        if total_food_generated % 6 == 0 {
+            is_bonus_food = 1;
+            bonus_food_rest_time = 60;
+        }
+    }
+    if is_head_in_snake_body() {
+        run_command!("title @p[distance=..5] title \"Game Over\"");
+        run_command!("title @p[distance=..5] subtitle \"Score: {}\"", score);
+        run_command!("scoreboard players set _ snake {}", score);
+        run_command!("scoreboard players operation @p[distance=..5] snake > _ snake");
+        run_command!("scoreboard players reset _ snake");
+        stop();
+    }
+}
+
+fn is_food_in_snake_body() -> int {
+    let i = 0;
+    while i < snake.size() {
+        if snake[i][0] == food[0] && snake[i][1] == food[1] {
+            return 1;
+        }
+        i += 1;
+    }
+    return 0;
+}
+
+fn is_head_in_snake_body() -> int {
+    let i = 0;
+    let s = snake.size();
+    while i < s - 1 {
+        if snake[i][0] == snake[s - 1][0] && snake[i][1] == snake[s - 1][1] {
+            return 1;
+        }
+        i += 1;
+    }
+    return 0;
+}
+
+fn generate_food() {
+    total_food_generated += 1;
+    while 1 {
+        food[0] = rand() % WIDTH;
+        food[1] = rand() % HEIGHT;
+        if !is_food_in_snake_body() {
+            return;
+        }
+    }
+}
+
+fn rand() -> int {
+    run_command!("execute store result storage memory:temp return_value int 1.0 run data get entity @e[sort=random,limit=1] UUID[0]");
+}
+
+fn grow() {
+    let new_tail = [
+        (2 * snake[0][0] - snake[1][0] + WIDTH) % WIDTH,
+        (2 * snake[0][1] - snake[1][1] + HEIGHT) % HEIGHT
+    ];
+    snake.insert(0, new_tail);
+}
+
+fn tick() {
+    if tick % 3 == 0 {
+        if !is_screen_ready {
+            init_screen();
+        }
+        process_input();
+        if is_game_on {
+            move();
+            check();
+            draw_screen();
+        } else {
+            run_command!("title @p[distance=..5] actionbar \"Press 9 to start!\"");
+        }
+        tick = 0;
+    }
+    if is_bonus_food {
+        bonus_food_rest_time -= 1;
+        if bonus_food_rest_time < 0 {
+            is_bonus_food = 0;
+            generate_food();
+        }
+    }
+    tick += 1;
+}
+
+fn stop() {
+    is_game_on = 0;
+}
+
+fn start() {
+    is_game_on = 1;
+    snake = INIT_SNAKE;
+    dir = RIGHT;
+    score = 0;
+    total_food_generated = 0;
+    is_bonus_food = 0;
+    bonus_food_rest_time = 0;
+    generate_food();
+}
+
+fn generate() {
+    run_command!("execute at @p run tp @p ~ ~ ~ 0 0");
+    run_command!("execute at @p run setblock ~ ~1 ~2 repeating_command_block");
+    run_command!("execute at @p run data modify block ~ ~1 ~2 auto set value true");
+    run_command!("scoreboard objectives add snake dummy \"Snake\"");
+    run_command!("scoreboard objectives setdisplay sidebar snake");
+    run_command!("execute at @p run data modify block ~ ~1 ~2 Command set value \"function snake:tick\"");
+    run_command!("item replace entity @p hotbar.0 with magenta_glazed_terracotta[minecraft:custom_name=\"←\"]");
+    run_command!("item replace entity @p hotbar.1 with magenta_glazed_terracotta[minecraft:custom_name=\"↓\"]");
+    run_command!("item replace entity @p hotbar.2 with magenta_glazed_terracotta[minecraft:custom_name=\"↑\"]");
+    run_command!("item replace entity @p hotbar.3 with magenta_glazed_terracotta[minecraft:custom_name=\"→\"]");
+}
