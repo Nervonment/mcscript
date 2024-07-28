@@ -8,6 +8,7 @@ pub fn mcscript_datapack(path: String) -> Datapack {
         "execute store result storage memory:temp base_index int 1.0 run scoreboard players get base_index registers",
         "data modify storage memory:stack frame set value []",
         "data modify storage memory:temp arguments set value {}",
+        "data modify storage memory:temp custom_command_arguments set value {}",
         "data modify storage memory:temp empty_str set value \"\"",
     ]);
     let mut pop_frame = Mcfunction::new("pop_frame".into());
