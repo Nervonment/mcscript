@@ -27,12 +27,6 @@ let RIGHT: int = 4;
 let AIR: int = 0;
 let WALL: int = 1;
 
-let random_num: int = 1;
-
-// 修改 RANDOM_SEED 的值以生成不同的迷宫. 
-// Modify the value of RANDOM_SEED to generate different mazes. 
-let RANDOM_SEED: int = 13;
-
 let maze: Array<Array<int>> = [[WALL; WIDTH]; HEIGHT];
 
 let x: int = 1;
@@ -43,8 +37,7 @@ fn main() {
     maze[1][1] = AIR;
     find();
     while blocks.size() {
-        random_num += RANDOM_SEED;
-        random_num %= blocks.size();
+        let random_num = rand() % blocks.size(); 
         let block = blocks[random_num];
         x = block[0];
         y = block[1];
@@ -78,6 +71,10 @@ fn main() {
         }
         x += 1;
     }
+}
+
+fn rand() -> int {
+    run_command!("execute store result storage memory:temp return_value int 1.0 run data get entity @e[sort=random,limit=1] UUID[0]");
 }
 
 fn find() {
