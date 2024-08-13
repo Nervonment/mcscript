@@ -74,7 +74,7 @@ fn main() {
 }
 
 fn rand() -> int {
-    run_command!("execute store result storage memory:temp return_value int 1.0 run data get entity @e[sort=random,limit=1] UUID[0]");
+    run_command!("execute store result storage memory:temp return_value int 1.0 run random value 0..2147483646");
 }
 
 fn find() {
