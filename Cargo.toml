@@ -9,5 +9,6 @@ lalrpop = "0.20.2"
 [dev-dependencies]
 
 [dependencies]
+clap = { version = "4.5.19", features = ["derive"] }
 crossterm = "0.27.0"
 lalrpop-util = { version = "0.20.2", features = ["lexer", "unicode"] }

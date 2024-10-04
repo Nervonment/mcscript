@@ -65,7 +65,7 @@ pub fn show_error_message(
     }
 
     stdout()
-        .execute(PrintStyledContent("error".red()))?
+        .execute(PrintStyledContent("error".red().bold()))?
         .execute(Print(": "))?
         .execute(Print(message))?
         .execute(Print("\n"))?
