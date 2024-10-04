@@ -245,6 +245,20 @@ fn rand() -> int {
 
 请参阅 [Minecraft Wiki](https://zh.minecraft.wiki/w/%E5%91%BD%E4%BB%A4) 以了解 Minecraft 中的命令以及使用方法. 
 
+#### 模组命令
+
+有的 Minecraft 模组含有自定义的命令, 例如 WorldEdit. 如果想要在 MCScript 中调用这些命令, 需要使用 `run_mod_command!` 而不是 `run_command!`: 
+
+```
+run_command!("tp 3 3 3");
+// 下面几条是 WorldEdit 中的命令
+run_mod_command!("/pos1 -2,-2,-2");
+run_mod_command!("/pos2 2,2,2");
+run_mod_command!("/set diamond_ore");
+```
+
+[worldedit_demo.mcs](example/worldedit_demo.mcs) 是一个将 MCScript 与 WorldEdit 搭配使用的实例, 它能够展示指定区域内建筑的逐层切片. 
+
 ### 全局变量
 
 在 MCScript 中声明全局变量时需要指定初始值和类型: 

@@ -10,6 +10,7 @@ pub fn mcscript_datapack(path: String) -> Datapack {
         "data modify storage memory:temp arguments set value {}",
         "data modify storage memory:temp custom_command_arguments set value {}",
         "data modify storage memory:temp empty_str set value \"\"",
+        "data modify storage memory:temp custom_command_arguments.empty_str set value \"\"",
     ]);
     let mut pop_frame = Mcfunction::new("pop_frame".into());
     pop_frame.append_commands(vec![

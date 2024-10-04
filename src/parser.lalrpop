@@ -98,8 +98,11 @@ WhileStmt: Stmt = {
 
 InlineCommandStmt: Stmt = {
     "run_command!" "(" <fmt_str: StringLiteral> <arguments: ("," <Exp>)*> ")" ";" => {
-        Stmt::InlineCommand { <> }
-    }
+        Stmt::InlineCommand { is_mod_command: false, <> }
+    },
+    "run_mod_command!" "(" <fmt_str: StringLiteral> <arguments: ("," <Exp>)*> ")" ";" => {
+        Stmt::InlineCommand { is_mod_command: true, <> }
+    },
 }
 
 StringLiteral: String = <l: r#""(\\\\|\\"|[^"\\])*""#> => apply_string_escapes(&l[1..l.len()-1]);

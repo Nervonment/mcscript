@@ -682,7 +682,7 @@ impl Generator {
                                 namespace, continue_label
                             ));
                         }
-                        Stmt::InlineCommand { fmt_str, arguments } => {
+                        Stmt::InlineCommand { is_mod_command, fmt_str, arguments } => {
                             for (i, arg) in arguments.iter_mut().enumerate() {
                                 let exp_val =
                                     self.eval(arg, &mut RegAcc::new(), &mut ObjAcc::new())?;
@@ -698,10 +698,13 @@ impl Generator {
                                 Mcfunction::new(format!("custom_cmd_{}", self.custom_cmd_acc));
                             self.custom_cmd_acc += 1;
                             let mut cmd = fmt_str.to_owned();
-                            let mut i = 0;
+                            let mut i: i32 = 0;
                             while cmd.contains("{}") {
                                 cmd = cmd.replacen("{}", &format!("$({})", i), 1);
                                 i += 1;
+                            }
+                            if *is_mod_command && i == 0 {
+                                cmd.push_str("$(empty_str)");
                             }
                             custom_cmd.append_command(&cmd);
                             let custom_cmd_name = custom_cmd.name().to_owned();

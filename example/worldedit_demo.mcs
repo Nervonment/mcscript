@@ -1,0 +1,61 @@
+// You need WorldEdit mod to run this script.
+
+// Run this function to generate a demo sphere.
+fn demo_shape() {
+    run_command!("tp @s 0 0 0");
+    run_mod_command!("/sphere red_concrete 12");
+    run_command!("tp @s 0 0 0");
+    run_mod_command!("/sphere orange_concrete 11");
+    run_command!("tp @s 0 0 0");
+    run_mod_command!("/sphere yellow_concrete 10");
+    run_command!("tp @s 0 0 0");
+    run_mod_command!("/sphere lime_concrete 9");
+    run_command!("tp @s 0 0 0");
+    run_mod_command!("/sphere green_concrete 8");
+    run_command!("tp @s 0 0 0");
+    run_mod_command!("/sphere cyan_concrete 7");
+    run_command!("tp @s 0 0 0");
+    run_mod_command!("/sphere light_blue_concrete 6");
+    run_command!("tp @s 0 0 0");
+    run_mod_command!("/sphere blue_concrete 5");
+    run_command!("tp @s 0 0 0");
+    run_mod_command!("/sphere purple_concrete 4");
+    run_command!("tp @s 0 0 0");
+    run_mod_command!("/sphere magenta_concrete 3");
+    run_command!("tp @s 0 0 0");
+    run_mod_command!("/sphere pink_concrete 2");
+    run_command!("tp @s 20 0 0");
+}
+
+
+let X1: int = -15;
+let Z1: int = -15;
+let X2: int = 15;
+let Z2: int = 15;
+
+let Y1: int = 14;
+let Y2: int = -12;
+
+let y: int = Y1;
+
+// Run this function to see the cross section of the next layer.
+// Before the first time to run this function, run worldedit_demo:init to initialize the global variables.
+fn slice_step() {
+    if y < Y2 {
+        run_mod_command!("/undo");
+        return;
+    }
+    run_command!("say current y: {}", y - 1);
+
+    if y != Y1 {
+        run_mod_command!("/undo");
+    }
+    run_mod_command!("/pos1 {},{},{}", X1, y, Z1);
+    run_mod_command!("/pos2 {},{},{}", X2, y, Z2);
+    run_mod_command!("/set air");
+    run_mod_command!("/pos1 {},{},{}", X1, y - 2, Z1);
+    run_mod_command!("/pos2 {},{},{}", X2, y - 2, Z2);
+    run_mod_command!("/set smooth_stone");
+    run_command!("tp @s {} {} {} 0 90", (X1 + X2) / 2, y + 20, (Z1 + Z2) / 2);
+    y -= 1;
+}
