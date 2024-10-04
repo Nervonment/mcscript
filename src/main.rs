@@ -88,6 +88,7 @@ fn main() -> Result<()> {
                 .write_to_file()?;
             }
             stdout().execute(PrintStyledContent("    Finished".green().bold()))?;
+            println!();
         }
         Err((file_name_no_extension, err)) => {
             let (file_path, content) = &input_files[&file_name_no_extension];
