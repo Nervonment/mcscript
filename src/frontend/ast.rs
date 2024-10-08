@@ -105,6 +105,7 @@ pub enum Stmt {
     },
     Exp(Box<Exp>),
     InlineCommand {
+        is_mod_command: bool,
         fmt_str: String,
         arguments: Vec<Box<Exp>>,
     },
