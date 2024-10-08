@@ -1,6 +1,9 @@
+// This is a tool for inspecting a building by showing all the
+// cross sections of it. 
+//
 // You need WorldEdit mod to run this script.
 
-// Run this function to generate a demo sphere.
+// Run this function to generate a demo sphere at 0 0 0.
 fn demo_shape() {
     run_command!("tp @s 0 0 0");
     run_mod_command!("/sphere red_concrete 12");
@@ -28,6 +31,7 @@ fn demo_shape() {
 }
 
 
+// The area of the building
 let X1: int = -15;
 let Z1: int = -15;
 let X2: int = 15;
