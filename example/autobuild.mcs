@@ -5,12 +5,24 @@
 //   (可以使用循环命令方块或者连接到时钟电路的普通命令方块)
 // - 运行 `/function autobuild:clear` 清除建造区域
 
+// 备注:
+// - 如果你的建筑截面比较大 (例如 30 * 30), 请先增大游戏规则 maxCommandChainLength,
+//   例如 `/gamerule maxCommandChainLength 1000000`
+// - 如果运行 `/function autobuild:step` 后没有反应, 可能是游戏规则 maxCommandChainLength 的大小不够.
+//   此时请按上一条中所述增加此值, 然后运行 `/function mcscript:init`, 再重新开始所有步骤
+
 // Usage:
 // - Modify `src_pos1`, `src_pos2`, `dest_pos1` below
 // - Run `/function autobuild:init` to initialize
 // - Repeat `/function autobuild:step` to show the building process
 //   (you can use a repeating command block or a normal command block connected to a clock circuit)
 // - Run `/function autobuild:clear` to clear the building area
+
+// Remarks:
+// - if the cross section is somewhat big (e.g. 30 * 30), please increase the gamerule maxCommandChainLength,
+//   e.g. `/gamerule maxCommandChainLength 1000000`
+// - If nothing happens after running `/function autobuild:step`, it may be that the gamerule maxCommandChainLength is not large enough. 
+//   In this case, increase this value as described in the previous item, then run `/function mcscript:init`, and restart all steps.
 
 // `src_pos1` 和 `src_pos2` 确定要建造的东西的位置
 // `dest_pos1` 是建造的地点
