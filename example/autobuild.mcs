@@ -1,0 +1,148 @@
+// 用法:
+// - 修改下面的 `src_pos1`, `src_pos2`, `dest_pos1`
+// - 运行 `/function autobuild:init` 来初始化
+// - 不断运行 `/function autobuild:step` 来展示建造过程
+//   (可以使用循环命令方块或者连接到时钟电路的普通命令方块)
+// - 运行 `/function autobuild:clear` 清除建造区域
+
+// Usage:
+// - Modify `src_pos1`, `src_pos2`, `dest_pos1` below
+// - Run `/function autobuild:init` to initialize
+// - Repeat `/function autobuild:step` to show the building process
+//   (you can use a repeating command block or a normal command block connected to a clock circuit)
+// - Run `/function autobuild:clear` to clear the building area
+
+// `src_pos1` 和 `src_pos2` 确定要建造的东西的位置
+// `dest_pos1` 是建造的地点
+
+// `src_pos1` and `src_pos2` is the position of the stuff to be built
+// `dest_pos1` is the position to build 
+
+let src_pos1: Array<int> = [-452, -59, -1320];
+let src_pos2: Array<int> = [-478, -17, -1293];
+let dest_pos1: Array<int> = [-605, -60, -1183];
+
+// 下面的不用改
+// Do not modify the code below
+
+let min_x: int = min(src_pos1[0], src_pos2[0]);
+let max_x: int = max(src_pos1[0], src_pos2[0]);
+let min_z: int = min(src_pos1[2], src_pos2[2]);
+let max_z: int = max(src_pos1[2], src_pos2[2]);
+let min_y: int = min(src_pos1[1], src_pos2[1]);
+let max_y: int = max(src_pos1[1], src_pos2[1]);
+
+let x: int = src_pos1[0];
+let y: int = min_y;
+let z: int = src_pos1[2];
+
+fn max(x: int, y: int) -> int {
+    if x > y {
+        return x;
+    }
+    return y;
+}
+
+fn min(x: int, y: int) -> int {
+    if x < y {
+        return x;
+    }
+    return y;
+}
+
+fn step() {
+    let success = 0;
+    let r = 1;
+    while !success && !is_enough(x, z, r) {
+        let d = 0;
+        while d <= r && !success {
+            if check(x + r, y, z + d) {
+                success = 1;
+                x = x + r;
+                z = z + d;
+            }
+            else if check(x - r, y, z + d) {
+                success = 1;
+                x = x - r;
+                z = z + d;
+            }
+            else if check(x + r, y, z - d) {
+                success = 1;
+                x = x + r;
+                z = z - d;
+            }
+            else if check(x - r, y, z - d) {
+                success = 1;
+                x = x - r;
+                z = z - d;
+            } 
+            else if check(x + d, y, z + r) {
+                success = 1;
+                x = x + d;
+                z = z + r;
+            }
+            else if check(x + d, y, z - r) {
+                success = 1;
+                x = x + d;
+                z = z - r;
+            }
+            else if check(x - d, y, z + r) {
+                success = 1;
+                x = x - d;
+                z = z + r;
+            }
+            else if check(x - d, y, z - r) {
+                success = 1;
+                x = x - d;
+                z = z - r;
+            }
+            d += 1;
+        }
+
+        r += 1;
+    }
+
+    run_command!(
+        "clone {} {} {} {} {} {} {} {} {} replace",
+        x, y, z,
+        x, y, z,
+        dest_pos1[0] + x - src_pos1[0],
+        dest_pos1[1] + y - src_pos1[1],
+        dest_pos1[2] + z - src_pos1[2]
+    );
+    
+    if !success && y < max_y {
+        y += 1;
+    }
+}
+
+fn is_enough(x: int, z: int, r: int) -> int {
+    return x + r > max_x && x - r < min_x && z + r > max_z && z - r < min_z;
+}
+
+fn check(x: int, y: int, z: int) -> int {
+    if x > max_x || x < min_x || z > max_z || z < min_z {
+        return 0;
+    }
+
+    run_command!("data modify storage memory:temp return_value set value 1");
+    run_command!(
+        "execute if block {} {} {} #minecraft:air run data modify storage memory:temp return_value set value 0",
+        x, y, z
+    );
+    run_command!(
+        "execute unless block {} {} {} #minecraft:air run data modify storage memory:temp return_value set value 0",
+        dest_pos1[0] + x - src_pos1[0],
+        dest_pos1[1] + y - src_pos1[1],
+        dest_pos1[2] + z - src_pos1[2]
+    );
+}
+
+fn clear() {
+    let dest_pos2 = [
+        dest_pos1[0] + src_pos2[0] - src_pos1[0],
+        dest_pos1[1] + src_pos2[1] - src_pos1[1],
+        dest_pos1[2] + src_pos2[2] - src_pos1[2]
+    ];
+    run_command!("fill {} {} {} {} {} {} minecraft:air", dest_pos1[0], dest_pos1[1], dest_pos1[2], dest_pos2[0], dest_pos2[1], dest_pos2[2]);
+}
