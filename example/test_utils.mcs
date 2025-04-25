@@ -228,24 +228,26 @@ fn counting_sort() {
     arr = sorted_arr;
 }
 
+let tmp_arr: Array<int> = [0];
+
 fn merge_sort() {
-    merge_sort_impl(0, arr.size());
+    tmp_arr = arr;
+    merge_sort_impl(0, arr.size() - 1);
 }
 
 fn merge_sort_impl(l: int, r: int) {
-    if l > r {
+    if l >= r {
         return;
     }
 
-    let mid = (l + r) / 2;
+    let mid = l + (r - l) / 2;
     merge_sort_impl(l, mid);
-    merge_sort_impl(mid, r);
+    merge_sort_impl(mid + 1, r);
 
     let i = l;
-    let j = mid;
+    let j = mid + 1;
     let k = l;
-    let tmp_arr = arr;
-    while i < mid && j < r {
+    while i <= mid && j <= r {
         if arr[i] < arr[j] {
             tmp_arr[k] = arr[i];
             i += 1;
@@ -255,15 +257,20 @@ fn merge_sort_impl(l: int, r: int) {
         }
         k += 1;
     }
-    while i < mid {
+    while i <= mid {
         tmp_arr[k] = arr[i];
         i += 1;
         k += 1;
     }
-    while j < r {
+    while j <= r {
         tmp_arr[k] = arr[j];
         j += 1;
         k += 1;
     }
-    arr = tmp_arr;
+    
+    i = l;
+    while i <= r {
+        arr[i] = tmp_arr[i];
+        i += 1;
+    }
 }

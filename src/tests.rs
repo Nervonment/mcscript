@@ -60,6 +60,15 @@ fn test_one(mcfunction: &str, expected_result: &str) -> Result<bool> {
         })?;
     println!();
 
+    let command = "data remove storage memory:temp return_value";
+    if cfg!(target_os = "windows") {
+        Command::new("mcrcon.exe")
+            .args(["-p", "123", command])
+            .output()
+    } else {
+        Command::new("mcrcon").args(["-p", "123", command]).output()
+    }?;
+
     Ok(pass)
 }
 
